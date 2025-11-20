@@ -1,14 +1,19 @@
 import 'dart:convert';
+import 'package:cinelink_app/app/constant.dart';
 import 'package:http/http.dart' as http;
 import '../models/movie.dart';
 
 class MovieService {
   // Cambia esta URL por la de tu backend NestJS
-  static const String baseUrl = 'http://localhost:4000/movie';
+final url = AppConstants.baseUrl;
+
+  //MI RUTA A LA API!!!! ---  POR LA MISMA RED A LA QUE ESTE CONECTADOS
+
+
 
   // Obtener todas las películas
   Future<List<Movie>> getMovies() async {
-    final response = await http.get(Uri.parse(baseUrl));
+    final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
       // Convertir JSON a lista de objetos Movie

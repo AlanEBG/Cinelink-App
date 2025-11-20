@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app/theme.dart';
 import 'views/movies/movie_list_page.dart';
 
 void main() {
@@ -12,7 +13,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Cine App',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: appTheme, // <-- Aquí aplicamos el tema global
       home: const MovieListPage(),
     );
   }
