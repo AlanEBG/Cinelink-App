@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../utils/validators.dart';
+import '../../app/constant.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,6 +18,7 @@ class _LoginPageState extends State<LoginPage> {
   
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  bool _loginAsAdmin = false;
 
   @override
   void dispose() {
@@ -46,8 +48,34 @@ class _LoginPageState extends State<LoginPage> {
     if (!mounted) return;
 
     if (success) {
-      // Navegar a home
-      Navigator.of(context).pushReplacementNamed('/home');
+      // Verificar si se marcó "Acceder como administrador"
+      if (_loginAsAdmin) {
+        // Verificar que el usuario tenga rol de Admin
+        if (authController.isAdmin) {
+          print('[LoginPage] Usuario es Admin, acceso permitido');
+          Navigator.of(context).pushReplacementNamed('/dashboard');
+        } else {
+          // El usuario NO es admin, mostrar error y hacer logout
+          print('[LoginPage] Usuario NO es Admin, acceso denegado');
+          
+          await authController.logout();
+          
+          if (!mounted) return;
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Acceso denegado: No tienes permisos de administrador'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      } else {
+        // Login normal
+        print('[LoginPage] Login normal, redirigiendo a dashboard');
+        Navigator.of(context).pushReplacementNamed('/dashboard');
+      }
     } else {
       // Mostrar error
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,7 +113,7 @@ class _LoginPageState extends State<LoginPage> {
                   
                   // Título
                   Text(
-                    'Cinema App',
+                    'Cine App',
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.primary,
@@ -176,6 +204,68 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ],
                   ),
+                  
+                  // Checkbox de acceder como administrador
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _loginAsAdmin 
+                          ? Colors.red.withOpacity(0.1)
+                          : Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _loginAsAdmin 
+                            ? Colors.red.withOpacity(0.3)
+                            : Colors.grey.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: CheckboxListTile(
+                      value: _loginAsAdmin,
+                      onChanged: (value) {
+                        setState(() {
+                          _loginAsAdmin = value ?? false;
+                        });
+                      },
+                      title: Row(
+                        children: [
+                          Icon(
+                            Icons.admin_panel_settings,
+                            color: _loginAsAdmin ? Colors.red : Colors.grey,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Acceder como Administrador',
+                            style: TextStyle(
+                              fontWeight: _loginAsAdmin 
+                                  ? FontWeight.bold 
+                                  : FontWeight.normal,
+                              color: _loginAsAdmin ? Colors.red : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: _loginAsAdmin
+                          ? const Padding(
+                              padding: EdgeInsets.only(left: 28, top: 4),
+                              child: Text(
+                                'Se verificará que tengas permisos de administrador',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            )
+                          : null,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      activeColor: Colors.red,
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 0,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   
                   // Login Button
@@ -187,6 +277,12 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: authController.isLoading
                               ? null
                               : _handleLogin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _loginAsAdmin 
+                                ? Colors.red 
+                                : theme.colorScheme.primary,
+                            foregroundColor: Colors.white,
+                          ),
                           child: authController.isLoading
                               ? const SizedBox(
                                   height: 20,
@@ -198,12 +294,28 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                   ),
                                 )
-                              : const Text(
-                                  'Iniciar Sesión',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (_loginAsAdmin) ...[
+                                      const Icon(
+                                        Icons.admin_panel_settings, 
+                                        size: 20,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
+                                    Text(
+                                      _loginAsAdmin 
+                                          ? 'Acceder como Admin'
+                                          : 'Iniciar Sesión',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                         ),
                       );
