@@ -1,3 +1,4 @@
+import 'package:cinelink_app/views/movies/movie_detail_page.dart';
 import 'package:flutter/material.dart';
 import '../../services/movie_service.dart';
 import '../../models/movie.dart';
@@ -243,6 +244,11 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MovieDetailPage(movie: movie)),
+                                );
                                 // TODO: Navegar a detalles de película
                                 print('Ver detalles: $title');
                               },
