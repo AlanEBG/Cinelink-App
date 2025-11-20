@@ -53,7 +53,7 @@ class _LoginPageState extends State<LoginPage> {
         // Verificar que el usuario tenga rol de Admin
         if (authController.isAdmin) {
           print('[LoginPage] Usuario es Admin, acceso permitido');
-          Navigator.of(context).pushReplacementNamed('/dashboard');
+          Navigator.of(context).pushReplacementNamed('/movies');
         } else {
           // El usuario NO es admin, mostrar error y hacer logout
           print('[LoginPage] Usuario NO es Admin, acceso denegado');
@@ -73,8 +73,8 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         // Login normal
-        print('[LoginPage] Login normal, redirigiendo a dashboard');
-        Navigator.of(context).pushReplacementNamed('/dashboard');
+        print('[LoginPage] Login normal, redirigiendo a movies');
+        Navigator.of(context).pushReplacementNamed('/movies');
       }
     } else {
       // Mostrar error

@@ -31,7 +31,7 @@ dependencies:
   
   # UI
   cupertino_icons: ^1.0.8
-  bubble_bottom_bar: ^2.0.0
+  animated_bottom_navigation_bar: ^1.4.0
 
 dev_dependencies:
   flutter_test:
