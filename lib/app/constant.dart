@@ -2,6 +2,9 @@ class AppConstants {
   // API Configuration
   static const String baseUrl = 'http://192.168.100.66:4000';
   // static const String baseUrl = 'http://localhost:4000'; // iOS
+
+    static const String moviesEndpoint = '/movie';
+
   
   static const String apiPrefix = ''; 
   static const String apiBaseUrl = baseUrl + apiPrefix;
@@ -41,3 +44,5 @@ class AppConstants {
   static const List<String> availableRoles = [roleAdmin, roleCustomer, roleManager];
   static const String defaultRole = roleCustomer;
 }
+
+

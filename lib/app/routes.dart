@@ -1,3 +1,9 @@
+import 'package:cinelink_app/views/admin/admin_page.dart';
+import 'package:cinelink_app/views/admin/movies/movies_view.dart';
+import 'package:cinelink_app/views/admin/showtimes/showtime_view.dart';
+import 'package:cinelink_app/views/admin/tickets/ticket_view.dart';
+import 'package:cinelink_app/views/admin/room/room_view.dart';
+import 'package:cinelink_app/views/admin/users/user_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../views/auth/login_page.dart';
@@ -12,6 +18,12 @@ class AppRoutes {
   static const String signup = '/signup';
   static const String home = '/home';
   static const String movies = '/movies';
+  static const String admin = '/admin';
+  static const String adminMovies = '/admin/movies';
+  static const String adminShowtimes = '/admin/showtimes';
+  static const String adminTickets = '/admin/tickets';
+  static const String adminRooms = '/admin/rooms';
+  static const String adminUsers = '/admin/users';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -34,6 +46,30 @@ class AppRoutes {
       case movies:
         return MaterialPageRoute(
           builder: (_) => const MovieListPage(),
+        );
+      case admin:
+        return MaterialPageRoute(
+          builder: (_) => const AdminPage(),
+        );
+      case adminMovies:
+        return MaterialPageRoute(
+          builder: (_) => const MoviesAdminPage(),
+        );
+      case adminShowtimes:
+        return MaterialPageRoute(
+          builder: (_) => const ShowtimesAdminPage(),
+        );
+      case adminTickets:
+        return MaterialPageRoute(
+          builder: (_) => const TicketsAdminPage(),
+        );
+      case adminRooms:
+        return MaterialPageRoute(
+          builder: (_) => const RoomsAdminPage(),
+        );
+      case adminUsers:
+        return MaterialPageRoute(
+          builder: (_) => const UsersAdminPage(),
         );
       default:
         return MaterialPageRoute(

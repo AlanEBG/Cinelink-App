@@ -172,12 +172,7 @@ class HomePage extends StatelessWidget {
                     color: Colors.red,
                     badge: 'ADMIN',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Panel de Admin próximamente'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
+                      Navigator.of(context).pushNamed('/admin');
                     },
                   ),
                 ],

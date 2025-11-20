@@ -13,14 +13,16 @@ final String url = "${AppConstants.baseUrl}/movie";
 
   // Obtener todas las películas
   Future<List<Movie>> getMovies() async {
-    final response = await http.get(Uri.parse(url));
+  final response = await http.get(Uri.parse(url));
 
-    if (response.statusCode == 200) {
-      // Convertir JSON a lista de objetos Movie
-      List<dynamic> jsonData = json.decode(response.body);
-      return jsonData.map((json) => Movie.fromJson(json)).toList();
-    } else {
-      throw Exception('Error al cargar películas: ${response.statusCode}');
-    }
+  if (response.statusCode == 200) {
+    List<dynamic> jsonData = json.decode(response.body);
+
+    // Ignorar showtimes ya que tu modelo no lo maneja
+    return jsonData.map((json) => Movie.fromJson(json as Map<String, dynamic>)).toList();
+  } else {
+    throw Exception('Error al cargar películas: ${response.statusCode}');
   }
+}
+
 }
