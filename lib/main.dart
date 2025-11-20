@@ -1,8 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'controllers/movie_controller.dart';
+import 'controllers/showtime_controller.dart';
+import 'controllers/seat_controller.dart';
+import 'controllers/virtual_seat_controller.dart';
 import 'views/movies/movie_list_page.dart';
 
+import 'controllers/auth_controller.dart';
+import 'app/routes.dart';
+import 'app/theme.dart';
+
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthController()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -10,10 +27,66 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Cine App',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const MovieListPage(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => MovieController()),
+        ChangeNotifierProvider(create: (_) => ShowtimeController()),
+        ChangeNotifierProvider(create: (_) => SeatController()),
+        ChangeNotifierProvider(create: (_) => VirtualSeatController()),
+      ],
+      child: MaterialApp(
+        title: 'Cinelink App',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.red,
+          primaryColor: const Color(0xFFE50914), // Netflix red
+          scaffoldBackgroundColor: Colors.white,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFFE50914),
+            brightness: Brightness.light,
+          ),
+          textTheme: GoogleFonts.poppinsTextTheme(),
+          appBarTheme: AppBarTheme(
+            backgroundColor: const Color(0xFFE50914),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            titleTextStyle: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE50914),
+              foregroundColor: Colors.white,
+              elevation: 2,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              textStyle: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          cardTheme: CardThemeData(
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            filled: true,
+            fillColor: Colors.grey[100],
+          ),
+          useMaterial3: true,
+        ),
+        home: const MovieListPage(),
+      ),
     );
   }
 }
