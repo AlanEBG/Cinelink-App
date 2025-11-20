@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../views/auth/login_page.dart';
 import '../views/auth/signup_page.dart';
 import '../views/movies/movie_list_page.dart';
+import '../views/profile/profile_page.dart';
+import '../views/more/more_page.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/app_layout.dart';
 
@@ -11,6 +13,8 @@ class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String movies = '/movies';
+  static const String profile = '/profile';
+  static const String more = '/more';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -34,6 +38,22 @@ class AppRoutes {
           builder: (_) => const AppLayout(
             currentIndex: 0,
             child: MovieListPage(),
+          ),
+        );
+      
+      case profile:
+        return MaterialPageRoute(
+          builder: (_) => const AppLayout(
+            currentIndex: 2,
+            child: ProfilePage(),
+          ),
+        );
+      
+      case more:
+        return MaterialPageRoute(
+          builder: (_) => const AppLayout(
+            currentIndex: 3,
+            child: MorePage(),
           ),
         );
       

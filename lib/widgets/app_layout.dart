@@ -24,35 +24,32 @@ class _AppLayoutState extends State<AppLayout> {
   }
 
   void _onNavBarTap(int index) {
+    if (index == _currentIndex) return;
+
     setState(() {
       _currentIndex = index;
     });
 
-    // Solo muestra un snackbar, NO navega
-    String section = '';
     switch (index) {
       case 0:
-        section = 'Películas';
+        Navigator.of(context).pushReplacementNamed('/movies');
         break;
       case 1:
-        section = 'Boletos';
+        // Boletos - En construcción
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Boletos - En construcción'),
+            duration: Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         break;
       case 2:
-        section = 'Perfil';
+        Navigator.of(context).pushReplacementNamed('/profile');
         break;
       case 3:
-        section = 'Más';
+        Navigator.of(context).pushReplacementNamed('/more');
         break;
-    }
-
-    if (index != widget.currentIndex) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$section - En construcción'),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
     }
   }
 
