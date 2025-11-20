@@ -7,8 +7,19 @@ import 'controllers/seat_controller.dart';
 import 'controllers/virtual_seat_controller.dart';
 import 'views/movies/movie_list_page.dart';
 
+import 'controllers/auth_controller.dart';
+import 'app/routes.dart';
+import 'app/theme.dart';
+
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthController()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
