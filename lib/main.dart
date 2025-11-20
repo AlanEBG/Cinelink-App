@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'views/movies/movie_list_page.dart';
+import 'package:provider/provider.dart';
+import 'controllers/auth_controller.dart';
+import 'app/routes.dart';
+import 'app/theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,10 +13,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Cine App',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const MovieListPage(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthController()),
+      ],
+      child: MaterialApp(
+        title: 'Cine App',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData.light(),
+        darkTheme: ThemeData.dark(),
+        themeMode: ThemeMode.system,
+        initialRoute: AppRoutes.splash,
+        onGenerateRoute: AppRoutes.generateRoute,
+      ),
     );
   }
 }
