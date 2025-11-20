@@ -5,7 +5,7 @@ import '../models/movie.dart';
 
 class MovieService {
   // Cambia esta URL por la de tu backend NestJS
-final url = AppConstants.baseUrl;
+final String url = "${AppConstants.baseUrl}/movie";
 
   //MI RUTA A LA API!!!! ---  POR LA MISMA RED A LA QUE ESTE CONECTADOS
 

@@ -1,6 +1,6 @@
 class AppConstants {
   // API Configuration
-  static const String baseUrl = 'http://192.168.100.64:4000';
+  static const String baseUrl = 'http://192.168.100.66:4000';
   // static const String baseUrl = 'http://localhost:4000'; // iOS
   
   static const String apiPrefix = ''; 
