@@ -19,10 +19,12 @@ class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String movies = '/movies';
+  // ❌ QUITAR showtimes de aquí (ShowtimeListPage requiere movie)
+  // static const String showtimes = '/showtimes';
   static const String profile = '/profile';
   static const String more = '/more';
-  
-  // Admin routes
+
+  // Admin routes (sin navbar)
   static const String admin = '/admin';
   static const String adminMovies = '/admin/movies';
   static const String adminShowtimes = '/admin/showtimes';
@@ -33,81 +35,72 @@ class AppRoutes {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case splash:
-        return MaterialPageRoute(
-          builder: (_) => const SplashPage(),
-        );
-      
+        return MaterialPageRoute(builder: (_) => const SplashPage());
+
+      // Auth pages (SIN navbar)
       case login:
-        return MaterialPageRoute(
-          builder: (_) => const LoginPage(),
-        );
-      
+        return MaterialPageRoute(builder: (_) => const LoginPage());
+
       case signup:
-        return MaterialPageRoute(
-          builder: (_) => const SignupPage(),
-        );
-      
+        return MaterialPageRoute(builder: (_) => const SignupPage());
+
+      // Main pages (CON navbar usando AppLayout)
       case movies:
         return MaterialPageRoute(
           builder: (_) => const AppLayout(
-            currentIndex: 0,
+            currentIndex: 0, // 🎬 Películas
             child: MovieListPage(),
           ),
         );
-      
+
+      // ❌ QUITAR esta ruta (ShowtimeListPage se accede desde MovieDetailPage)
+      // case showtimes:
+      //   return MaterialPageRoute(
+      //     builder: (_) => const AppLayout(
+      //       currentIndex: 1,
+      //       child: ShowtimeListPage(),
+      //     ),
+      //   );
+
       case profile:
         return MaterialPageRoute(
           builder: (_) => const AppLayout(
-            currentIndex: 2,
+            currentIndex: 2, // 👤 Perfil
             child: ProfilePage(),
           ),
         );
-      
+
       case more:
         return MaterialPageRoute(
           builder: (_) => const AppLayout(
-            currentIndex: 3,
+            currentIndex: 3, // ☰ Más
             child: MorePage(),
           ),
         );
-      
-      // Admin routes
+
+      // Admin pages (SIN navbar)
       case admin:
-        return MaterialPageRoute(
-          builder: (_) => const AdminPage(),
-        );
-      
+        return MaterialPageRoute(builder: (_) => const AdminPage());
+
       case adminMovies:
-        return MaterialPageRoute(
-          builder: (_) => const MoviesAdminPage(),
-        );
-      
+        return MaterialPageRoute(builder: (_) => const MoviesAdminPage());
+
       case adminShowtimes:
-        return MaterialPageRoute(
-          builder: (_) => const ShowtimesAdminPage(),
-        );
-      
+        return MaterialPageRoute(builder: (_) => const ShowtimesAdminPage());
+
       case adminTickets:
-        return MaterialPageRoute(
-          builder: (_) => const TicketsAdminPage(),
-        );
-      
+        return MaterialPageRoute(builder: (_) => const TicketsAdminPage());
+
       case adminRooms:
-        return MaterialPageRoute(
-          builder: (_) => const RoomsAdminPage(),
-        );
-      
+        return MaterialPageRoute(builder: (_) => const RoomsAdminPage());
+
       case adminUsers:
-        return MaterialPageRoute(
-          builder: (_) => const UsersAdminPage(),
-        );
-      
+        return MaterialPageRoute(builder: (_) => const UsersAdminPage());
+
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
-            body: Center(
-              child: Text('No route defined for ${settings.name}'),
-            ),
+            body: Center(child: Text('No route defined for ${settings.name}')),
           ),
         );
     }
@@ -130,14 +123,14 @@ class _SplashPageState extends State<SplashPage> {
 
   Future<void> _initialize() async {
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (!mounted) return;
-    
+
     final authController = context.read<AuthController>();
     await authController.initialize();
-    
+
     if (!mounted) return;
-    
+
     if (authController.isAuthenticated) {
       Navigator.of(context).pushReplacementNamed(AppRoutes.movies);
     } else {
@@ -160,10 +153,7 @@ class _SplashPageState extends State<SplashPage> {
             const SizedBox(height: 24),
             const Text(
               'Cine App',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
             const CircularProgressIndicator(),
