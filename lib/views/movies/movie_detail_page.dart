@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/movie.dart';
 import '../../controllers/showtime_controller.dart';
 import '../showtimes/showtime_list_page.dart';
+import '../../services/movie_info_service.dart';
 
 class MovieDetailPage extends StatefulWidget {
   final Movie movie;
@@ -20,11 +21,36 @@ class MovieDetailPage extends StatefulWidget {
 class _MovieDetailPageState extends State<MovieDetailPage> {
   final ScrollController _scrollController = ScrollController();
   bool _showWhiteBackground = false;
+  final MovieInfoService _movieInfoService = MovieInfoService();
+  CombinedMovieInfo? _movieInfo;
+  bool _isLoadingMovieInfo = true;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadMovieDetails();
+  }
+
+  Future<void> _loadMovieDetails() async {
+    setState(() {
+      _isLoadingMovieInfo = true;
+    });
+
+    try {
+      final info = await _movieInfoService.getMovieInfo(
+        widget.movie.movieTitle,
+      );
+      setState(() {
+        _movieInfo = info;
+        _isLoadingMovieInfo = false;
+      });
+    } catch (e) {
+      print('Error cargando información de la película: $e');
+      setState(() {
+        _isLoadingMovieInfo = false;
+      });
+    }
   }
 
   @override
@@ -528,6 +554,40 @@ class _MovieDetailPageState extends State<MovieDetailPage> {
   }
 
   Widget _buildDirectorSection(BuildContext context) {
+    if (_isLoadingMovieInfo) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Dirigida por',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1E2A47),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Center(child: CircularProgressIndicator()),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final directors = _movieInfo?.getDirectors() ?? [];
+
+    if (directors.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Container(
@@ -548,7 +608,17 @@ class _MovieDetailPageState extends State<MovieDetailPage> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildDirectorCard(name: 'Director Name', imageUrl: null),
+            ...directors
+                .map(
+                  (director) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: _buildDirectorCard(
+                      name: director.name,
+                      imageUrl: director.photoUrl,
+                    ),
+                  ),
+                )
+                .toList(),
           ],
         ),
       ),
@@ -565,15 +635,20 @@ class _MovieDetailPageState extends State<MovieDetailPage> {
             color: Colors.grey[300],
             borderRadius: BorderRadius.circular(12),
           ),
-          child: imageUrl != null
+          child: imageUrl != null && imageUrl.isNotEmpty
               ? ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    imageUrl,
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return _buildPersonPlaceholder();
-                    },
+                    placeholder: (context, url) => Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    errorWidget: (context, url, error) =>
+                        _buildPersonPlaceholder(),
                   ),
                 )
               : _buildPersonPlaceholder(),
@@ -594,13 +669,43 @@ class _MovieDetailPageState extends State<MovieDetailPage> {
   }
 
   Widget _buildCastSection(BuildContext context) {
-    // Datos de ejemplo - reemplazar con datos reales
-    final cast = [
-      {'name': 'Actor 1', 'imageUrl': null},
-      {'name': 'Actor 2', 'imageUrl': null},
-      {'name': 'Actor 3', 'imageUrl': null},
-      {'name': 'Actor 4', 'imageUrl': null},
-    ];
+    if (_isLoadingMovieInfo) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Reparto',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1E2A47),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Center(child: CircularProgressIndicator()),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final castMembers = _movieInfo?.getCast(limit: 10) ?? [];
+
+    if (castMembers.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final cast = castMembers
+        .map((member) => {'name': member.name, 'imageUrl': member.photoUrl})
+        .toList();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -646,40 +751,45 @@ class _MovieDetailPageState extends State<MovieDetailPage> {
 
   Widget _buildCastMemberCard({required String name, String? imageUrl}) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 120,
-          height: 140,
+          width: 100,
+          height: 130,
           decoration: BoxDecoration(
             color: Colors.grey[300],
             borderRadius: BorderRadius.circular(12),
           ),
-          child: imageUrl != null
+          child: imageUrl != null && imageUrl.isNotEmpty
               ? ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    imageUrl,
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return _buildPersonPlaceholder();
-                    },
+                    placeholder: (context, url) => Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    errorWidget: (context, url, error) =>
+                        _buildPersonPlaceholder(),
                   ),
                 )
               : _buildPersonPlaceholder(),
         ),
         const SizedBox(height: 8),
         SizedBox(
-          width: 120,
+          width: 100,
           child: Text(
             name,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
               color: const Color(0xFF1E2A47),
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

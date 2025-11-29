@@ -10,7 +10,8 @@ class MovieListPage extends StatefulWidget {
   State<MovieListPage> createState() => _MovieListPageState();
 }
 
-class _MovieListPageState extends State<MovieListPage> with TickerProviderStateMixin {
+class _MovieListPageState extends State<MovieListPage>
+    with TickerProviderStateMixin {
   final MovieService _movieService = MovieService();
   late Future<List<Movie>> _moviesFuture;
   final TextEditingController _searchController = TextEditingController();
@@ -68,7 +69,7 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
 
   List<Movie> _filterMovies(List<Movie> movies) {
     if (_query.isEmpty) return movies;
-    
+
     return movies.where((m) {
       final title = (m.movieTitle ?? '').toLowerCase();
       final genre = (m.movieGenre ?? '').toLowerCase();
@@ -94,7 +95,11 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
               gradient: const LinearGradient(colors: [_accent, _accentLight]),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.local_movies, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.local_movies,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 12),
           const Text(
@@ -115,7 +120,11 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                 color: _cardBg,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.person_outline, color: _textSecondary, size: 20),
+              child: const Icon(
+                Icons.person_outline,
+                color: _textSecondary,
+                size: 20,
+              ),
             ),
           ),
         ],
@@ -145,7 +154,10 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
           ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 20,
+          ),
         ),
       ),
     );
@@ -187,7 +199,7 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                           errorBuilder: (_, __, ___) => _placeholder(title),
                         )
                       : _placeholder(title),
-                  
+
                   // Gradiente
                   Container(
                     decoration: BoxDecoration(
@@ -202,7 +214,7 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                       ),
                     ),
                   ),
-                  
+
                   // Contenido
                   Positioned(
                     bottom: 0,
@@ -225,7 +237,10 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                           ),
                           const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: _orange,
                               borderRadius: BorderRadius.circular(8),
@@ -247,7 +262,9 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => MovieDetailPage(movie: movie)),
+                                    builder: (context) =>
+                                        MovieDetailPage(movie: movie),
+                                  ),
                                 );
                                 // TODO: Navegar a detalles de película
                                 print('Ver detalles: $title');
@@ -258,7 +275,9 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                               ),
                               child: const Text(
                                 'Detalles',
@@ -285,7 +304,7 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
         .take(2)
         .map((e) => e.isNotEmpty ? e[0] : '')
         .join();
-    
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -312,7 +331,7 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
       genre,
       () => PageController(viewportFraction: 0.55),
     );
-    
+
     final controller = _controllers[genre]!;
 
     return Column(
@@ -341,14 +360,15 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                 builder: (context, child) {
                   double scale = 1.0;
                   double opacity = 1.0;
-                  
+
                   if (controller.hasClients) {
-                    double page = controller.page ?? controller.initialPage.toDouble();
+                    double page =
+                        controller.page ?? controller.initialPage.toDouble();
                     double distance = (page - index).abs();
                     scale = (1.0 - (distance * 0.1)).clamp(0.85, 1.0);
                     opacity = (1.0 - (distance * 0.3)).clamp(0.7, 1.0);
                   }
-                  
+
                   return _movieCard(movies[index], scale, opacity);
                 },
               );
@@ -383,7 +403,7 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                 ),
               );
             }
-            
+
             // Error
             if (snapshot.hasError) {
               return Center(
@@ -420,7 +440,7 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                 ),
               );
             }
-            
+
             // Empty
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return RefreshIndicator(
@@ -433,11 +453,18 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                     Center(
                       child: Column(
                         children: [
-                          Icon(Icons.movie_outlined, size: 80, color: _textSecondary),
+                          Icon(
+                            Icons.movie_outlined,
+                            size: 80,
+                            color: _textSecondary,
+                          ),
                           const SizedBox(height: 16),
                           Text(
                             'No hay películas disponibles',
-                            style: TextStyle(color: _textSecondary, fontSize: 16),
+                            style: TextStyle(
+                              color: _textSecondary,
+                              fontSize: 16,
+                            ),
                           ),
                         ],
                       ),
@@ -465,7 +492,11 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                     Center(
                       child: Column(
                         children: [
-                          Icon(Icons.search_off, size: 80, color: _textSecondary),
+                          Icon(
+                            Icons.search_off,
+                            size: 80,
+                            color: _textSecondary,
+                          ),
                           const SizedBox(height: 16),
                           Text(
                             'No se encontraron películas',
@@ -474,7 +505,10 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                           const SizedBox(height: 8),
                           Text(
                             'Intenta con otro término',
-                            style: TextStyle(color: _textSecondary, fontSize: 14),
+                            style: TextStyle(
+                              color: _textSecondary,
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),
