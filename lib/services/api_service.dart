@@ -23,7 +23,6 @@ class ApiService {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      // Importante para manejar cookies
       validateStatus: (status) {
         return status != null && status < 500;
       },
@@ -38,23 +37,23 @@ class ApiService {
   void _setupInterceptors() {
     _dio.interceptors.add(
       InterceptorsWrapper(
-onRequest: (options, handler) async {
-  // Añadir Bearer token a cada request
-  final token = await _storage.read(key: AppConstants.accessTokenKey);
-  if (token != null && token.isNotEmpty) {
-    options.headers['Authorization'] = 'Bearer $token';
-  }
-  
-  print('[REQUEST] ========== REQUEST ==========');
-  print('[REQUEST] METHOD: ${options.method}');
-  print('[REQUEST] URL: ${options.baseUrl}${options.path}');
-  print('[REQUEST] HEADERS: ${options.headers}');
-  print('[REQUEST] DATA TYPE: ${options.data?.runtimeType}');
-  print('[REQUEST] DATA: ${options.data}');
-  print('[REQUEST] ================================');
-  
-  return handler.next(options);
-},
+        onRequest: (options, handler) async {
+          // Añadir Bearer token a cada request
+          final token = await _storage.read(key: AppConstants.accessTokenKey);
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          
+          print('[REQUEST] ========== REQUEST ==========');
+          print('[REQUEST] METHOD: ${options.method}');
+          print('[REQUEST] URL: ${options.baseUrl}${options.path}');
+          print('[REQUEST] HEADERS: ${options.headers}');
+          print('[REQUEST] DATA TYPE: ${options.data?.runtimeType}');
+          print('[REQUEST] DATA: ${options.data}');
+          print('[REQUEST] ================================');
+          
+          return handler.next(options);
+        },
         onResponse: (response, handler) {
           print('✅ RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
           print('📥 DATA: ${response.data}');
@@ -109,10 +108,23 @@ onRequest: (options, handler) async {
     );
   }
   
+  // Getter para acceder al Dio instance
+  Dio get dio => _dio;
+  
   // Limpiar cookies
   Future<void> clearCookies() async {
     await _cookieJar.deleteAll();
     print('🗑️ Cookies eliminadas');
+  }
+  
+  // Set token de autenticación manualmente
+  void setAuthToken(String token) {
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+  
+  // Remove token de autenticación
+  void removeAuthToken() {
+    _dio.options.headers.remove('Authorization');
   }
   
   // Métodos HTTP genéricos

@@ -23,11 +23,11 @@ class Movie {
 
   factory Movie.fromJson(Map<String, dynamic> json) {
     return Movie(
-      movieId: json['movieId'],
-      movieTitle: json['movieTitle'],
-      movieDescription: json['movieDescription'],
-      movieDurationMinutes: json['movieDurationMinutes'],
-      movieGenre: json['movieGenre'],
+      movieId: _parseInt(json['movieId']),
+      movieTitle: json['movieTitle'] ?? '',
+      movieDescription: json['movieDescription'] ?? '',
+      movieDurationMinutes: _parseInt(json['movieDurationMinutes']) ?? 0,
+      movieGenre: json['movieGenre'] ?? '',
       movieImageUrl: json['movieImageUrl'],
       movieTrailer: json['movieTrailer'],
       /*showtimes: json['showtimes'] != null
@@ -35,6 +35,15 @@ class Movie {
               json['showtimes'].map((x) => Showtime.fromJson(x)))
           : null,*/
     );
+  }
+
+  // Helper para convertir a int de forma segura
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   Map<String, dynamic> toJson() {

@@ -1,3 +1,4 @@
+import 'package:cinelink_app/views/movies/movie_detail_page.dart';
 import 'package:flutter/material.dart';
 import '../../services/movie_service.dart';
 import '../../models/movie.dart';
@@ -29,15 +30,21 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
   void initState() {
     super.initState();
     _loadMovies();
-    _searchController.addListener(() => setState(() => _query = _searchController.text.trim().toLowerCase()));
+    _searchController.addListener(() {
+      setState(() {
+        _query = _searchController.text.trim().toLowerCase();
+      });
+    });
   }
 
   void _loadMovies() {
-    _moviesFuture = _movieService.getMovies();
+    setState(() {
+      _moviesFuture = _movieService.getMovies();
+    });
   }
 
   Future<void> _refresh() async {
-    setState(() => _loadMovies());
+    _loadMovies();
     await _moviesFuture;
   }
 
@@ -59,6 +66,16 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
     return grouped;
   }
 
+  List<Movie> _filterMovies(List<Movie> movies) {
+    if (_query.isEmpty) return movies;
+    
+    return movies.where((m) {
+      final title = (m.movieTitle ?? '').toLowerCase();
+      final genre = (m.movieGenre ?? '').toLowerCase();
+      return title.contains(_query) || genre.contains(_query);
+    }).toList();
+  }
+
   Widget _buildAppBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
@@ -74,7 +91,7 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [_accent, _accentLight]),
+              gradient: const LinearGradient(colors: [_accent, _accentLight]),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.local_movies, color: Colors.white, size: 24),
@@ -98,7 +115,7 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                 color: _cardBg,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.person_outline, color: _textSecondary, size: 20),
+              child: const Icon(Icons.person_outline, color: _textSecondary, size: 20),
             ),
           ),
         ],
@@ -116,11 +133,11 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
           filled: true,
           fillColor: _cardBg,
           hintText: 'Buscar películas...',
-          hintStyle: TextStyle(color: _textSecondary),
-          prefixIcon: Icon(Icons.search, color: _accent),
+          hintStyle: const TextStyle(color: _textSecondary),
+          prefixIcon: const Icon(Icons.search, color: _accent),
           suffixIcon: _query.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.close, color: _textSecondary),
+                  icon: const Icon(Icons.close, color: _textSecondary),
                   onPressed: () => _searchController.clear(),
                 )
               : null,
@@ -226,7 +243,15 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () => print('Ver: $title'),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MovieDetailPage(movie: movie)),
+                                );
+                                // TODO: Navegar a detalles de película
+                                print('Ver detalles: $title');
+                              },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: _accent,
                                 foregroundColor: Colors.white,
@@ -255,9 +280,14 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
   }
 
   Widget _placeholder(String title) {
-    final initials = title.split(' ').take(2).map((e) => e.isNotEmpty ? e[0] : '').join();
+    final initials = title
+        .split(' ')
+        .take(2)
+        .map((e) => e.isNotEmpty ? e[0] : '')
+        .join();
+    
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [_accent, _accentLight],
           begin: Alignment.topLeft,
@@ -337,31 +367,61 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
         child: FutureBuilder<List<Movie>>(
           future: _moviesFuture,
           builder: (context, snapshot) {
+            // Loading
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: CircularProgressIndicator(color: _accent),
-              );
-            }
-            
-            if (snapshot.hasError) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline, color: _orange, size: 48),
+                    const CircularProgressIndicator(color: _accent),
                     const SizedBox(height: 16),
-                    Text('Error al cargar películas', style: TextStyle(color: _textPrimary)),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => setState(() => _loadMovies()),
-                      style: ElevatedButton.styleFrom(backgroundColor: _accent),
-                      child: const Text('Reintentar'),
+                    Text(
+                      'Cargando películas...',
+                      style: TextStyle(color: _textSecondary),
                     ),
                   ],
                 ),
               );
             }
             
+            // Error
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, color: _orange, size: 48),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error al cargar películas',
+                      style: TextStyle(color: _textPrimary, fontSize: 18),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      snapshot.error.toString(),
+                      style: TextStyle(color: _textSecondary, fontSize: 14),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _loadMovies,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reintentar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            
+            // Empty
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return RefreshIndicator(
                 onRefresh: _refresh,
@@ -371,9 +431,15 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                     _buildAppBar(),
                     const SizedBox(height: 100),
                     Center(
-                      child: Text(
-                        'No hay películas disponibles',
-                        style: TextStyle(color: _textSecondary, fontSize: 16),
+                      child: Column(
+                        children: [
+                          Icon(Icons.movie_outlined, size: 80, color: _textSecondary),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No hay películas disponibles',
+                            style: TextStyle(color: _textSecondary, fontSize: 16),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -381,16 +447,42 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
               );
             }
 
+            // Success
             final movies = snapshot.data!;
-            final filtered = _query.isEmpty
-                ? movies
-                : movies.where((m) {
-                    final title = (m.movieTitle ?? '').toLowerCase();
-                    final genre = (m.movieGenre ?? '').toLowerCase();
-                    return title.contains(_query) || genre.contains(_query);
-                  }).toList();
-
+            final filtered = _filterMovies(movies);
             final grouped = _groupByGenre(filtered);
+
+            // Sin resultados de búsqueda
+            if (filtered.isEmpty && _query.isNotEmpty) {
+              return RefreshIndicator(
+                onRefresh: _refresh,
+                color: _accent,
+                child: ListView(
+                  children: [
+                    _buildAppBar(),
+                    _buildSearchBar(),
+                    const SizedBox(height: 100),
+                    Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.search_off, size: 80, color: _textSecondary),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No se encontraron películas',
+                            style: TextStyle(color: _textPrimary, fontSize: 18),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Intenta con otro término',
+                            style: TextStyle(color: _textSecondary, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
 
             return RefreshIndicator(
               onRefresh: _refresh,
@@ -404,7 +496,7 @@ class _MovieListPageState extends State<MovieListPage> with TickerProviderStateM
                       .toList(),
                   const SizedBox(height: 30),
                 ],
-              )
+              ),
             );
           },
         ),

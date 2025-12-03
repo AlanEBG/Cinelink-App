@@ -73,7 +73,7 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         // Login normal
-        print('[LoginPage] Login normal, redirigiendo a dashboard');
+        print('[LoginPage] Login normal, redirigiendo a movies');
         Navigator.of(context).pushReplacementNamed('/movies');
       }
     } else {
