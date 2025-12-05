@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../utils/validators.dart';
 import '../../app/constant.dart';
+import '../../views/admin/routes_admin.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -53,7 +54,7 @@ class _LoginPageState extends State<LoginPage> {
         // Verificar que el usuario tenga rol de Admin
         if (authController.isAdmin) {
           print('[LoginPage] Usuario es Admin, acceso permitido');
-          Navigator.of(context).pushReplacementNamed('/movies');
+          Navigator.of(context).pushReplacementNamed('/admin');
         } else {
           // El usuario NO es admin, mostrar error y hacer logout
           print('[LoginPage] Usuario NO es Admin, acceso denegado');

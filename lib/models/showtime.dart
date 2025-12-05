@@ -1,3 +1,5 @@
+import 'package:cinelink_app/models/movie.dart';
+
 import 'room.dart';
 
 class Showtime {
@@ -7,6 +9,7 @@ class Showtime {
   final int remainingSeats;
   final String lenguage; // 'ingles', 'subtitulado', 'español'
   final int? movieId;
+  final Movie? movie;
   final int? roomId;
   final Room? room; // Objeto room completo si viene del backend
 
@@ -17,6 +20,7 @@ class Showtime {
     required this.remainingSeats,
     required this.lenguage,
     this.movieId,
+    this.movie,
     this.roomId,
     this.room,
   });

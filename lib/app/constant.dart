@@ -1,8 +1,10 @@
 class AppConstants {
   // API Configuration
-  static const String baseUrl = 'http://172.29.96.1:4000';
-  // static const String baseUrl = 'http://localhost:4000'; // iOS
 
+  //static const String baseUrl = 'http://10.0.2.2:4000';
+   //static const String baseUrl = 'http://localhost:4000'; // iOS
+
+static const String baseUrl = 'http://192.168.1.95:4000';
   static const String moviesEndpoint = '/movie';
 
   static const String apiPrefix = '';
