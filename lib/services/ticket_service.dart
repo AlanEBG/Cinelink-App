@@ -236,19 +236,6 @@ class TicketService {
   }
 
   // Buscar tickets por cliente
-  Future<List<Ticket>> searchTicketsByCustomer(String query) async {
-    try {
-      final tickets = await getAllTickets();
-      return tickets
-          .where(
-            (ticket) => ticket.customerId?.toLowerCase().contains(query.toLowerCase()) ?? false,
-          )
-          .toList();
-    } catch (e) {
-      print('Error al buscar tickets: $e');
-      rethrow;
-    }
-  }
 
   // Filtrar tickets por rango de precios
   List<Ticket> filterTicketsByPriceRange(

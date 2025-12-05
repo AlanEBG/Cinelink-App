@@ -9,9 +9,9 @@ class Showtime {
   final int remainingSeats;
   final String lenguage; // 'ingles', 'subtitulado', 'español'
   final int? movieId;
-  final Movie? movie;
   final int? roomId;
-  final Room? room; // Objeto room completo si viene del backend
+  final Movie? movie;
+  final Room? room;
 
   Showtime({
     this.id,
@@ -20,13 +20,12 @@ class Showtime {
     required this.remainingSeats,
     required this.lenguage,
     this.movieId,
-    this.movie,
     this.roomId,
+    this.movie,
     this.room,
   });
 
   factory Showtime.fromJson(Map<String, dynamic> json) {
-    // DEBUG: Imprimir JSON completo
     print('=== DEBUG SHOWTIME.fromJson ===');
     print('Raw JSON: $json');
     print('json[\'room\']: ${json['room']}');
@@ -34,99 +33,59 @@ class Showtime {
     print('json[\'roomId\']: ${json['roomId']}');
     print('================================');
 
-    // Parsear movieId (puede venir como objeto o como ID)
-    int? movieId;
+    // Parsear movie
+    Movie? movieObj;
+    int? movieIdValue;
+    
     if (json['movie'] != null) {
-      if (json['movie'] is Map) {
-        print('DEBUG: movie es un Map, intentando extraer movieId...');
-        print('DEBUG: json[\'movie\'] keys: ${(json['movie'] as Map).keys}');
-        final movieMap = json['movie'] as Map;
-        movieId =
-            _parseInt(movieMap['movieId']) ??
-            _parseInt(movieMap['id']) ??
-            _parseInt(movieMap['movie_id']) ??
-            _parseInt(movieMap['MovieId']);
-        print('DEBUG: movieId extraído del Map: $movieId');
-      } else {
+      if (json['movie'] is Map<String, dynamic>) {
+        print('DEBUG: movie es un Map, parseando objeto Movie');
+        movieObj = Movie.fromJson(json['movie']);
+        movieIdValue = movieObj.movieId;
+      } else if (json['movie'] is int) {
         print('DEBUG: movie NO es un Map, es: ${json['movie'].runtimeType}');
-        movieId = _parseInt(json['movie']);
-        print('DEBUG: movieId parseado directamente: $movieId');
+        movieIdValue = json['movie'];
+        print('DEBUG: movieId parseado directamente: $movieIdValue');
       }
     } else if (json['movieId'] != null) {
-      print('DEBUG: usando json[\'movieId\'] directamente');
-      movieId = _parseInt(json['movieId']);
-      print('DEBUG: movieId: $movieId');
-    } else if (json['movie_id'] != null) {
-      print('DEBUG: usando json[\'movie_id\'] directamente');
-      movieId = _parseInt(json['movie_id']);
-      print('DEBUG: movieId: $movieId');
+      movieIdValue = json['movieId'];
     }
 
-    // Parsear roomId y room (puede venir como objeto o como ID)
-    int? roomId;
-    Room? room;
-
+    // Parsear room
+    Room? roomObj;
+    int? roomIdValue;
+    
     if (json['room'] != null) {
-      if (json['room'] is Map) {
-        print(
-          'DEBUG: room es un Map, intentando extraer roomId y crear Room...',
-        );
-        print('DEBUG: json[\'room\'] keys: ${(json['room'] as Map).keys}');
-
-        final roomMap = json['room'] as Map<String, dynamic>;
-
-        // Intentar múltiples nombres de campo para roomId
-        roomId =
-            _parseInt(roomMap['roomId']) ??
-            _parseInt(roomMap['id']) ??
-            _parseInt(roomMap['room_id']) ??
-            _parseInt(roomMap['RoomId']);
-
-        print('DEBUG: roomId extraído del Map: $roomId');
-
-        // Crear objeto Room desde el JSON
-        try {
-          room = Room.fromJson(roomMap);
-          print(
-            'DEBUG: Room object creado exitosamente: ${room.roomName}, capacity: ${room.roomCapacity}',
-          );
-        } catch (e) {
-          print('DEBUG: Error al crear Room object: $e');
-        }
-      } else {
+      if (json['room'] is Map<String, dynamic>) {
+        print('DEBUG: room es un Map, parseando objeto Room');
+        roomObj = Room.fromJson(json['room']);
+        roomIdValue = roomObj.roomId;
+      } else if (json['room'] is int) {
         print('DEBUG: room NO es un Map, es: ${json['room'].runtimeType}');
-        roomId = _parseInt(json['room']);
-        print('DEBUG: roomId parseado directamente: $roomId');
+        roomIdValue = json['room'];
+        print('DEBUG: roomId parseado directamente: $roomIdValue');
       }
     } else if (json['roomId'] != null) {
-      print('DEBUG: usando json[\'roomId\'] directamente');
-      roomId = _parseInt(json['roomId']);
-      print('DEBUG: roomId: $roomId');
-    } else if (json['room_id'] != null) {
-      print('DEBUG: usando json[\'room_id\'] directamente');
-      roomId = _parseInt(json['room_id']);
-      print('DEBUG: roomId: $roomId');
-    } else {
-      print('DEBUG: NO SE ENCONTRÓ roomId en ningún formato');
+      roomIdValue = json['roomId'];
     }
 
-    print('DEBUG: roomId final: $roomId');
-    print('DEBUG: room object final: ${room != null ? "exists" : "null"}');
+    print('DEBUG: roomId final: $roomIdValue');
+    print('DEBUG: room object final: $roomObj');
     print('================================');
 
     return Showtime(
-      id: json['id']?.toString(),
+      id: json['id'],
       dateTime: DateTime.parse(json['dateTime']),
       price: _parseDouble(json['price']),
-      remainingSeats: _parseInt(json['remainingSeats']) ?? 0,
+      remainingSeats: json['remainingSeats'] ?? 0,
       lenguage: json['lenguage'] ?? '',
-      movieId: movieId,
-      roomId: roomId,
-      room: room,
+      movieId: movieIdValue,
+      roomId: roomIdValue,
+      movie: movieObj,
+      room: roomObj,
     );
   }
 
-  // Helper para convertir a double de forma segura
   static double _parseDouble(dynamic value) {
     if (value == null) return 0.0;
     if (value is double) return value;
@@ -135,47 +94,66 @@ class Showtime {
     return 0.0;
   }
 
-  // Helper para convertir a int de forma segura
-  static int? _parseInt(dynamic value) {
-    if (value == null) return null;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value);
-    return null;
-  }
-
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'dateTime': dateTime.toIso8601String(),
+    // Para crear/actualizar, solo enviamos los IDs
+    final json = {
+      'dateTime': dateTime.toUtc().toIso8601String(),
       'price': price,
       'remainingSeats': remainingSeats,
       'lenguage': lenguage,
-      'movie': movieId,
-      'room': room?.toJson() ?? roomId,
+      'movie': movieId,  // El backend espera 'movie' con el ID
+      'room': roomId,    // El backend espera 'room' con el ID
     };
+
+    // Solo incluir ID si existe (para actualización)
+    if (id != null) {
+      json['id'] = id;
+    }
+
+    print('=== DEBUG SHOWTIME.toJson ===');
+    print('Generated JSON: $json');
+    print('================================');
+
+    return json;
   }
 
-  // Helper para verificar si es subtitulado
-  bool get isSubtitled => lenguage.toLowerCase() == 'subtitulado';
+  // Getters útiles
+  String get formattedDate {
+    return '${dateTime.day.toString().padLeft(2, '0')}/'
+        '${dateTime.month.toString().padLeft(2, '0')}/'
+        '${dateTime.year}';
+  }
 
-  // Helper para verificar si es en inglés
-  bool get isEnglish => lenguage.toLowerCase() == 'ingles';
+  String get formattedTime {
+    return '${dateTime.hour.toString().padLeft(2, '0')}:'
+        '${dateTime.minute.toString().padLeft(2, '0')}';
+  }
 
-  // Helper para verificar si es en español
-  bool get isSpanish => lenguage.toLowerCase() == 'español';
+  String get formattedDateTime {
+    return '$formattedDate $formattedTime';
+  }
 
-  // Helper para obtener el idioma formateado
-  String get languageLabel {
-    switch (lenguage.toLowerCase()) {
-      case 'ingles':
-        return 'Inglés';
-      case 'subtitulado':
-        return 'Subtitulado';
-      case 'español':
-        return 'Español';
-      default:
-        return lenguage;
-    }
+  Showtime copyWith({
+    String? id,
+    DateTime? dateTime,
+    double? price,
+    int? remainingSeats,
+    String? lenguage,
+    int? movieId,
+    int? roomId,
+    Movie? movie,
+    Room? room,
+  }) {
+    return Showtime(
+      id: id ?? this.id,
+      dateTime: dateTime ?? this.dateTime,
+      price: price ?? this.price,
+      remainingSeats: remainingSeats ?? this.remainingSeats,
+      lenguage: lenguage ?? this.lenguage,
+      movieId: movieId ?? this.movieId,
+      roomId: roomId ?? this.roomId,
+      movie: movie ?? this.movie,
+      room: room ?? this.room,
+    );
   }
 }

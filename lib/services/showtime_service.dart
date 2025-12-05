@@ -251,7 +251,7 @@ class ShowtimeService {
   // Actualizar una función (Admin)
   Future<Showtime?> updateShowtime(String id, Showtime showtime) async {
     try {
-      final response = await _apiService.put(
+      final response = await _apiService.patch(
         '${AppConstants.showtimesEndpoint}/$id',
         data: showtime.toJson(),
       );

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../models/ticket.dart';
 import '../../../services/ticket_service.dart';
@@ -151,7 +152,8 @@ class _TicketsAdminPageState extends State<TicketsAdminPage> with SingleTickerPr
     
     return _tickets.where((ticket) =>
       (ticket.id?.toLowerCase().contains(_searchQuery) ?? false) ||
-      (ticket.customerId?.toLowerCase().contains(_searchQuery) ?? false) ||
+      (ticket.customer?.fullName.toLowerCase().contains(_searchQuery) ?? false) ||
+      (ticket.customer?.customerEmail?.toLowerCase().contains(_searchQuery) ?? false) ||
       ticket.price.toString().contains(_searchQuery)
     ).toList();
   }
@@ -496,6 +498,12 @@ class _TicketsAdminPageState extends State<TicketsAdminPage> with SingleTickerPr
   }
 
   Widget _buildTicketCard(Ticket ticket, int index) {
+    // Información del cliente
+    String customerName = ticket.customer?.fullName ?? 'N/A';
+    
+    // Información de la película
+    String movieTitle = ticket.showtime?.movie?.movieTitle ?? 'N/A';
+
     return TweenAnimationBuilder(
       duration: Duration(milliseconds: 400 + (index * 50)),
       tween: Tween<double>(begin: 0, end: 1),
@@ -650,7 +658,7 @@ class _TicketsAdminPageState extends State<TicketsAdminPage> with SingleTickerPr
                             Expanded(
                               child: _buildInfoItem(
                                 'Cliente',
-                                ticket.customerId ?? 'N/A',
+                                customerName,
                                 Icons.person,
                               ),
                             ),
@@ -668,8 +676,8 @@ class _TicketsAdminPageState extends State<TicketsAdminPage> with SingleTickerPr
                           children: [
                             Expanded(
                               child: _buildInfoItem(
-                                'Función',
-                                ticket.showtimeId ?? 'N/A',
+                                'Película',
+                                movieTitle,
                                 Icons.movie,
                               ),
                             ),
@@ -738,13 +746,36 @@ class _TicketsAdminPageState extends State<TicketsAdminPage> with SingleTickerPr
   }
 
   void _showTicketDetails(Ticket ticket) {
+    // Información del cliente
+    String customerName = ticket.customer?.fullName ?? 'N/A';
+    String customerEmail = ticket.customer?.customerEmail ?? 'N/A';
+    String customerPhone = ticket.customer?.customerPhoneNumber ?? 'N/A';
+    
+    // Información de la función
+    String movieTitle = ticket.showtime?.movie?.movieTitle ?? 'N/A';
+    String movieGenre = ticket.showtime?.movie?.movieGenre ?? 'N/A';
+    String movieDuration = ticket.showtime?.movie?.movieDurationMinutes != null 
+        ? '${ticket.showtime!.movie!.movieDurationMinutes} min' 
+        : 'N/A';
+    String roomName = ticket.showtime?.room?.roomName ?? 'N/A';
+    String showtimeDate = 'N/A';
+    
+    if (ticket.showtime?.dateTime != null) {
+      final date = ticket.showtime!.dateTime!;
+      showtimeDate = '${date.day.toString().padLeft(2, '0')}/'
+          '${date.month.toString().padLeft(2, '0')}/'
+          '${date.year} - '
+          '${date.hour.toString().padLeft(2, '0')}:'
+          '${date.minute.toString().padLeft(2, '0')}';
+    }
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
         backgroundColor: _cardBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -765,14 +796,27 @@ class _TicketsAdminPageState extends State<TicketsAdminPage> with SingleTickerPr
                     Icon(Icons.confirmation_number, color: Colors.white, size: 28),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'Ticket #${ticket.id ?? 'N/A'}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ticket #${ticket.id ?? 'N/A'}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '\$${ticket.price.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     IconButton(
@@ -789,17 +833,57 @@ class _TicketsAdminPageState extends State<TicketsAdminPage> with SingleTickerPr
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildDetailRow('ID', ticket.id ?? 'N/A', Icons.confirmation_number),
+                      // Información del Ticket
+                      Text(
+                        'Información del Ticket',
+                        style: TextStyle(
+                          color: _textLight,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 12),
-                      _buildDetailRow('Precio', '\$${ticket.price.toStringAsFixed(2)}', Icons.attach_money),
+                      _buildDetailRow('Fecha de Compra', ticket.formattedDate, Icons.calendar_today),
                       const SizedBox(height: 12),
-                      _buildDetailRow('Fecha', ticket.formattedDate, Icons.calendar_today),
+                      _buildDetailRow('Hora de Compra', ticket.formattedTime, Icons.access_time),
+                      
+                      const SizedBox(height: 24),
+                      // Información del Cliente
+                      Text(
+                        'Información del Cliente',
+                        style: TextStyle(
+                          color: _textLight,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 12),
-                      _buildDetailRow('Hora', ticket.formattedTime, Icons.access_time),
+                      _buildDetailRow('Nombre', customerName, Icons.person),
                       const SizedBox(height: 12),
-                      _buildDetailRow('Cliente', ticket.customerId ?? 'N/A', Icons.person),
+                      _buildDetailRow('Correo', customerEmail, Icons.email),
                       const SizedBox(height: 12),
-                      _buildDetailRow('Función', ticket.showtimeId ?? 'N/A', Icons.movie),
+                      _buildDetailRow('Teléfono', customerPhone, Icons.phone),
+                      
+                      const SizedBox(height: 24),
+                      // Información de la Función
+                      Text(
+                        'Información de la Función',
+                        style: TextStyle(
+                          color: _textLight,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Película', movieTitle, Icons.movie),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Género', movieGenre, Icons.category),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Duración', movieDuration, Icons.timer),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Sala', roomName, Icons.meeting_room),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Horario', showtimeDate, Icons.event),
                     ],
                   ),
                 ),
