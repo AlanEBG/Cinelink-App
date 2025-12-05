@@ -44,7 +44,7 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
   bool _isLoading = true;
   String? _errorMessage;
 
-  final List<String> _languageOptions = ['español', 'ingles', 'subtitulado'];
+  final List<String> _languageOptions = ['Español', 'Ingles', 'Subtitulado'];
   String? _quickFilter;
 
   @override
