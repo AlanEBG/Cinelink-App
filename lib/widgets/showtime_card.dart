@@ -97,7 +97,7 @@ class ShowtimeCard extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    showtime.languageLabel,
+                    showtime.lenguage,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,

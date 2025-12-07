@@ -656,7 +656,7 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
               DateFormat('dd/MM/yyyy HH:mm').format(widget.showtime.dateTime),
             ),
             const SizedBox(height: 8),
-            _buildConfirmRow('Idioma', widget.showtime.languageLabel),
+            _buildConfirmRow('Idioma', widget.showtime.lenguage),
             const SizedBox(height: 8),
             _buildConfirmRow('Sala', controller.currentRoom?.roomName ?? "N/A"),
             const SizedBox(height: 8),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../../../app/constant.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import '../../../models/movie.dart';
+import '../../../services/movie_service.dart';
 
 class MoviesAdminPage extends StatefulWidget {
   const MoviesAdminPage({super.key});
@@ -15,8 +15,11 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
   late Animation<double> _fadeAnimation;
   
   final TextEditingController _searchController = TextEditingController();
+  final MovieService _movieService = MovieService();
+  
   String _searchQuery = '';
-  String _selectedFilter = 'Todas';
+  bool _isSearchFocused = false;
+  final FocusNode _searchFocusNode = FocusNode();
   
   // Colores modernos
   static const Color _darkBg = Color(0xFF0F172A);
@@ -24,24 +27,29 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
   static const Color _surfaceBg = Color(0xFF334155);
   static const Color _primaryBlue = Color(0xFF3B82F6);
   static const Color _successGreen = Color(0xFF10B981);
-  static const Color _warningAmber = Color(0xFFF59E0B);
   static const Color _dangerRed = Color(0xFFEF4444);
-  static const Color _purpleAccent = Color(0xFF8B5CF6);
   static const Color _textLight = Color(0xFFF8FAFC);
   static const Color _textMuted = Color(0xFF94A3B8);
 
-  // Lista de películas desde API
   List<Movie> _movies = [];
   bool _isLoading = true;
   String? _errorMessage;
 
-  final List<String> _filterOptions = ['Todas', 'En Cartelera', 'Próximamente', 'Finalizada'];
-  final List<String> _genreOptions = ['Acción', 'Drama', 'Comedia', 'Terror', 'Ciencia Ficción', 'Romance', 'Aventura'];
-  final List<String> _ratingOptions = ['G', 'PG', 'PG-13', 'R', 'NC-17'];
+  final List<String> _genreOptions = [
+    'Acción', 'Drama', 'Comedia', 'Terror', 'Ciencia Ficción', 
+    'Romance', 'Aventura', 'Suspenso', 'Animación', 'Documental'
+  ];
 
   @override
   void initState() {
     super.initState();
+    _setupAnimations();
+    _setupSearchListener();
+    _setupFocusListener();
+    _loadMovies();
+  }
+
+  void _setupAnimations() {
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -50,65 +58,45 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _animationController.forward();
-    
+  }
+
+  void _setupSearchListener() {
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.toLowerCase();
       });
     });
+  }
 
-    // Cargar películas desde API
-    _loadMovies();
+  void _setupFocusListener() {
+    _searchFocusNode.addListener(() {
+      setState(() {
+        _isSearchFocused = _searchFocusNode.hasFocus;
+      });
+    });
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
-  // Cargar películas desde la API
   Future<void> _loadMovies() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
+      final movies = await _movieService.getAllMovies();
       setState(() {
-        _isLoading = true;
-        _errorMessage = null;
+        _movies = movies;
+        _isLoading = false;
       });
-
-      print('🎬 Cargando películas desde: ${AppConstants.baseUrl}${AppConstants.moviesEndpoint}');
-
-      final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}${AppConstants.moviesEndpoint}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
-
-      print('📡 Movies API Response Status: ${response.statusCode}');
-      print('📡 Movies API Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        
-        if (data['status'] == true && data['data'] != null) {
-          final List<dynamic> moviesJson = data['data'];
-          final List<Movie> loadedMovies = moviesJson.map((movieData) => Movie.fromJson(movieData)).toList();
-          
-          setState(() {
-            _movies = loadedMovies;
-            _isLoading = false;
-          });
-          print('✅ Películas cargadas: ${_movies.length}');
-        } else {
-          throw Exception(data['message'] ?? 'Error en la respuesta de la API');
-        }
-      } else {
-        throw Exception('Error ${response.statusCode}: ${response.reasonPhrase}');
-      }
     } catch (e) {
-      print('❌ Error cargando películas: $e');
       setState(() {
         _isLoading = false;
         _errorMessage = 'Error al cargar películas: $e';
@@ -116,100 +104,38 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
     }
   }
 
-  // Agregar nueva película
   Future<void> _addMovie(Movie movie) async {
     try {
-      final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}${AppConstants.moviesEndpoint}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: json.encode(movie.toJson()),
-      );
-
-      print('📡 Add Movie Response: ${response.statusCode}');
-      print('📡 Add Movie Body: ${response.body}');
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data['status'] == true) {
-          // Recargar la lista
-          await _loadMovies();
-          _showSuccessSnackBar('Película agregada correctamente');
-        } else {
-          throw Exception(data['message'] ?? 'Error al agregar película');
-        }
-      } else {
-        throw Exception('Error ${response.statusCode}: ${response.reasonPhrase}');
-      }
+      await _movieService.createMovie(movie);
+      await _loadMovies();
+      _showSuccessSnackBar('Película agregada correctamente');
     } catch (e) {
-      print('❌ Error agregando película: $e');
       _showErrorSnackBar('Error al agregar película: $e');
     }
   }
 
-  // Actualizar película
   Future<void> _updateMovie(Movie movie) async {
     try {
-      final response = await http.put(
-        Uri.parse('${AppConstants.baseUrl}${AppConstants.moviesEndpoint}/${movie.id}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: json.encode(movie.toJson()),
-      );
-
-      print('📡 Update Movie Response: ${response.statusCode}');
-      print('📡 Update Movie Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data['status'] == true) {
-          // Recargar la lista
-          await _loadMovies();
-          _showSuccessSnackBar('Película actualizada correctamente');
-        } else {
-          throw Exception(data['message'] ?? 'Error al actualizar película');
-        }
-      } else {
-        throw Exception('Error ${response.statusCode}: ${response.reasonPhrase}');
+      if (movie.movieId == null) {
+        _showErrorSnackBar('Error: ID de película no encontrado');
+        return;
       }
+      
+      await _movieService.updateMovie(movie.movieId!, movie);
+      await _loadMovies();
+      _showSuccessSnackBar('Película actualizada correctamente');
     } catch (e) {
-      print('❌ Error actualizando película: $e');
       _showErrorSnackBar('Error al actualizar película: $e');
+      print('Error detallado al actualizar: $e');
     }
   }
 
-  // Eliminar película
-  Future<void> _deleteMovieFromAPI(int movieId) async {
+  Future<void> _deleteMovie(int movieId) async {
     try {
-      final response = await http.delete(
-        Uri.parse('${AppConstants.baseUrl}${AppConstants.moviesEndpoint}/$movieId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      );
-
-      print('📡 Delete Movie Response: ${response.statusCode}');
-      print('📡 Delete Movie Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data['status'] == true) {
-          // Recargar la lista
-          await _loadMovies();
-          _showSuccessSnackBar('Película eliminada correctamente');
-        } else {
-          throw Exception(data['message'] ?? 'Error al eliminar película');
-        }
-      } else {
-        throw Exception('Error ${response.statusCode}: ${response.reasonPhrase}');
-      }
+      await _movieService.deleteMovie(movieId);
+      await _loadMovies();
+      _showSuccessSnackBar('Película eliminada correctamente');
     } catch (e) {
-      print('❌ Error eliminando película: $e');
       _showErrorSnackBar('Error al eliminar película: $e');
     }
   }
@@ -217,9 +143,17 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: _successGreen,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -227,107 +161,226 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: _dangerRed,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
 
   List<Movie> get _filteredMovies {
-    List<Movie> filtered = _movies;
+    if (_searchQuery.isEmpty) return _movies;
     
-    if (_selectedFilter != 'Todas') {
-      filtered = filtered.where((movie) => movie.status == _selectedFilter).toList();
-    }
-    
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((movie) =>
-        movie.title.toLowerCase().contains(_searchQuery) ||
-        movie.director.toLowerCase().contains(_searchQuery) ||
-        movie.genre.toLowerCase().contains(_searchQuery)
-      ).toList();
-    }
-    
-    return filtered;
+    return _movies.where((movie) =>
+      movie.movieTitle.toLowerCase().contains(_searchQuery) ||
+      movie.movieGenre.toLowerCase().contains(_searchQuery) ||
+      movie.movieDescription.toLowerCase().contains(_searchQuery)
+    ).toList();
   }
 
-  Widget _buildSearchAndFilters() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Buscar películas...',
-                hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-                prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_primaryBlue, _primaryBlue.withOpacity(0.8)],
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryBlue.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                ),
               ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Gestión de Películas',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Administrar cartelera de cine',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: _successGreen,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _successGreen.withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _showAddMovieDialog(),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      child: const Icon(
+                        Icons.add_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildSearchBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: _isSearchFocused
+            ? [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        style: TextStyle(
+          color: _darkBg,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Buscar películas por título, género o descripción...',
+          hintStyle: TextStyle(
+            color: _textMuted.withOpacity(0.6),
+            fontSize: 15,
+            fontWeight: FontWeight.normal,
+          ),
+          prefixIcon: Container(
+            padding: const EdgeInsets.all(14),
+            child: Icon(
+              Icons.search_rounded,
+              color: _isSearchFocused ? _primaryBlue : _textMuted.withOpacity(0.6),
+              size: 26,
             ),
           ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? Container(
+                  margin: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _dangerRed.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.clear_rounded,
+                      color: _dangerRed,
+                      size: 22,
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      _searchFocusNode.unfocus();
+                    },
+                  ),
+                )
+              : _isSearchFocused
+                  ? Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Icon(
+                        Icons.keyboard_rounded,
+                        color: _primaryBlue.withOpacity(0.5),
+                        size: 22,
+                      ),
+                    )
+                  : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         ),
-        const SizedBox(width: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: DropdownButton<String>(
-            value: _selectedFilter,
-            dropdownColor: _surfaceBg,
-            underline: const SizedBox(),
-            icon: Icon(Icons.filter_list, color: Colors.white.withOpacity(0.8)),
-            style: const TextStyle(color: Colors.white),
-            items: _filterOptions.map((filter) => DropdownMenuItem(
-              value: filter,
-              child: Text(filter, style: const TextStyle(color: Colors.white)),
-            )).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedFilter = value!;
-              });
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: IconButton(
-            onPressed: _loadMovies,
-            icon: Icon(Icons.refresh, color: Colors.white.withOpacity(0.8)),
-            tooltip: 'Recargar películas',
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildStatsCards() {
-    final activeMovies = _movies.where((m) => m.status == 'En Cartelera').length;
-    final upcomingMovies = _movies.where((m) => m.status == 'Próximamente').length;
-    final totalRevenue = _movies.fold<double>(0.0, (sum, movie) => sum + movie.revenue);
+    final totalMovies = _movies.length;
+    final uniqueGenres = _movies.map((m) => m.movieGenre).toSet().length;
+    final totalDuration = _movies.fold(0, (sum, m) => sum + m.movieDurationMinutes);
 
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Row(
         children: [
-          _buildStatCard('En Cartelera', activeMovies.toString(), Icons.movie, _successGreen),
+          _buildStatCard('Total', totalMovies.toString(), Icons.movie, _primaryBlue),
           const SizedBox(width: 12),
-          _buildStatCard('Próximamente', upcomingMovies.toString(), Icons.upcoming, _warningAmber),
+          _buildStatCard('Géneros', uniqueGenres.toString(), Icons.category, _successGreen),
           const SizedBox(width: 12),
-          _buildStatCard('Ingresos', '\$${totalRevenue.toStringAsFixed(0)}', Icons.attach_money, _primaryBlue),
+          _buildStatCard('Horas', '${(totalDuration / 60).toStringAsFixed(1)}h', Icons.access_time, Colors.purple),
         ],
       ),
     );
@@ -341,26 +394,41 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
           color: _cardBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: color.withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 12),
             Text(
               value,
               style: TextStyle(
                 color: _textLight,
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
               title,
               style: TextStyle(
                 color: _textMuted,
                 fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -401,13 +469,14 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
+              ElevatedButton.icon(
                 onPressed: _loadMovies,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryBlue,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Reintentar'),
               ),
             ],
           ),
@@ -415,21 +484,25 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
       );
     }
 
-    if (_movies.isEmpty) {
+    if (_filteredMovies.isEmpty) {
       return Expanded(
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.movie_outlined, color: _textMuted, size: 64),
+              Icon(
+                _searchQuery.isNotEmpty ? Icons.search_off : Icons.movie_outlined,
+                color: _textMuted,
+                size: 64,
+              ),
               const SizedBox(height: 16),
               Text(
-                'No hay películas disponibles',
+                _searchQuery.isNotEmpty ? 'No se encontraron películas' : 'No hay películas disponibles',
                 style: TextStyle(color: _textMuted, fontSize: 18),
               ),
               const SizedBox(height: 8),
               Text(
-                'Agrega tu primera película',
+                _searchQuery.isNotEmpty ? 'Intenta con otra búsqueda' : 'Agrega tu primera película',
                 style: TextStyle(color: _textMuted),
               ),
             ],
@@ -459,11 +532,11 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
 
   Widget _buildMovieCard(Movie movie, int index) {
     return TweenAnimationBuilder(
-      duration: Duration(milliseconds: 600 + (index * 100)),
+      duration: Duration(milliseconds: 400 + (index * 50)),
       tween: Tween<double>(begin: 0, end: 1),
       builder: (context, double value, child) {
         return Transform.translate(
-          offset: Offset(0, 50 * (1 - value)),
+          offset: Offset(0, 30 * (1 - value)),
           child: Opacity(
             opacity: value,
             child: Container(
@@ -471,38 +544,47 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
               decoration: BoxDecoration(
                 color: _cardBg,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _getStatusColor(movie.status).withOpacity(0.3),
-                ),
+                border: Border.all(color: _primaryBlue.withOpacity(0.2)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
               child: Row(
                 children: [
-                  // Poster placeholder
+                  // Poster
                   Container(
                     width: 120,
                     height: 180,
                     decoration: BoxDecoration(
-                      color: _getStatusColor(movie.status).withOpacity(0.2),
+                      color: _primaryBlue.withOpacity(0.1),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(20),
                         bottomLeft: Radius.circular(20),
                       ),
                     ),
-                    child: Center(
-                      child: Text(
-                        movie.posterUrl,
-                        style: const TextStyle(fontSize: 48),
-                      ),
-                    ),
+                    child: movie.movieImageUrl != null && movie.movieImageUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              bottomLeft: Radius.circular(20),
+                            ),
+                            child: Image.network(
+                              movie.movieImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => const Center(
+                                child: Icon(Icons.movie, size: 48, color: Colors.white54),
+                              ),
+                            ),
+                          )
+                        : const Center(
+                            child: Icon(Icons.movie, size: 48, color: Colors.white54),
+                          ),
                   ),
-                  // Información de la película
+                  // Información
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(20),
@@ -513,101 +595,105 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
                             children: [
                               Expanded(
                                 child: Text(
-                                  movie.title,
+                                  movie.movieTitle,
                                   style: const TextStyle(
                                     color: _textLight,
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                   ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: _getStatusColor(movie.status),
-                                  borderRadius: BorderRadius.circular(8),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: PopupMenuButton<String>(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 160,
+                                    maxWidth: 200,
+                                  ),
+                                  icon: Icon(Icons.more_vert, color: _textMuted, size: 20),
+                                  color: _surfaceBg,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  onSelected: (value) => _handleMenuAction(value, movie),
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(
+                                      value: 'view',
+                                      height: 48,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.visibility, color: _primaryBlue, size: 18),
+                                          const SizedBox(width: 12),
+                                          Flexible(
+                                            child: Text(
+                                              'Ver Detalles',
+                                              style: TextStyle(color: _textLight, fontSize: 14),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'edit',
+                                      height: 48,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.edit, color: _successGreen, size: 18),
+                                          const SizedBox(width: 12),
+                                          Flexible(
+                                            child: Text(
+                                              'Editar',
+                                              style: TextStyle(color: _textLight, fontSize: 14),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      height: 48,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.delete, color: _dangerRed, size: 18),
+                                          const SizedBox(width: 12),
+                                          Flexible(
+                                            child: Text(
+                                              'Eliminar',
+                                              style: TextStyle(color: _textLight, fontSize: 14),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                child: Text(
-                                  movie.status,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              PopupMenuButton<String>(
-                                icon: Icon(Icons.more_vert, color: _textMuted),
-                                color: _surfaceBg,
-                                onSelected: (value) => _handleMenuAction(value, movie),
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(
-                                    value: 'view',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.visibility, color: _primaryBlue, size: 18),
-                                        const SizedBox(width: 8),
-                                        Text('Ver Detalles', style: TextStyle(color: _textLight)),
-                                      ],
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.edit, color: _successGreen, size: 18),
-                                        const SizedBox(width: 8),
-                                        Text('Editar', style: TextStyle(color: _textLight)),
-                                      ],
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'showtimes',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.schedule, color: _warningAmber, size: 18),
-                                        const SizedBox(width: 8),
-                                        Text('Funciones', style: TextStyle(color: _textLight)),
-                                      ],
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.delete, color: _dangerRed, size: 18),
-                                        const SizedBox(width: 8),
-                                        Text('Eliminar', style: TextStyle(color: _textLight)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Dir. ${movie.director}',
-                            style: TextStyle(
-                              color: _textMuted,
-                              fontSize: 14,
-                              fontStyle: FontStyle.italic,
-                            ),
                           ),
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
                             runSpacing: 4,
                             children: [
-                              _buildChip(movie.genre, _primaryBlue),
-                              _buildChip('${movie.duration} min', _textMuted),
-                              _buildChip(movie.rating, _warningAmber),
-                              _buildChip(movie.language, _purpleAccent),
+                              _buildChip(movie.movieGenre, _primaryBlue),
+                              _buildChip('${movie.movieDurationMinutes} min', Colors.orange),
                             ],
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            movie.description,
+                            movie.movieDescription,
                             style: TextStyle(
                               color: _textMuted,
                               fontSize: 13,
@@ -616,20 +702,6 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildMovieStat('Precio', '\$${movie.price.toStringAsFixed(2)}', Icons.attach_money),
-                              ),
-                              Expanded(
-                                child: _buildMovieStat('Funciones', movie.totalShows.toString(), Icons.movie_creation),
-                              ),
-                              Expanded(
-                                child: _buildMovieStat('Tickets', movie.ticketsSold.toString(), Icons.confirmation_number),
-                              ),
-                            ],
-                          ),
                         ],
                       ),
                     ),
@@ -637,7 +709,7 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
                 ],
               ),
             ),
-          ),
+          )
         );
       },
     );
@@ -645,10 +717,11 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
 
   Widget _buildChip(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withOpacity(0.2),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Text(
         label,
@@ -661,39 +734,6 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
     );
   }
 
-  Widget _buildMovieStat(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: _textMuted, size: 16),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: _textLight,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: _textMuted,
-            fontSize: 10,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'En Cartelera': return _successGreen;
-      case 'Próximamente': return _warningAmber;
-      case 'Finalizada': return _textMuted;
-      default: return _primaryBlue;
-    }
-  }
-
   void _handleMenuAction(String action, Movie movie) {
     switch (action) {
       case 'view':
@@ -701,9 +741,6 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
         break;
       case 'edit':
         _showEditMovieDialog(movie);
-        break;
-      case 'showtimes':
-        _showShowtimesDialog(movie);
         break;
       case 'delete':
         _showDeleteConfirmation(movie);
@@ -720,207 +757,339 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
   }
 
   void _showMovieDialog({required String title, Movie? movie}) {
-    final titleController = TextEditingController(text: movie?.title ?? '');
-    final directorController = TextEditingController(text: movie?.director ?? '');
-    final durationController = TextEditingController(text: movie?.duration.toString() ?? '');
-    final priceController = TextEditingController(text: movie?.price.toString() ?? '');
-    final descriptionController = TextEditingController(text: movie?.description ?? '');
-    String selectedGenre = movie?.genre ?? 'Acción';
-    String selectedRating = movie?.rating ?? 'PG-13';
-    String selectedStatus = movie?.status ?? 'Próximamente';
-    String selectedLanguage = movie?.language ?? 'Español';
-    DateTime selectedDate = movie?.releaseDate ?? DateTime.now();
+    final titleController = TextEditingController(text: movie?.movieTitle ?? '');
+    final descriptionController = TextEditingController(text: movie?.movieDescription ?? '');
+    final durationController = TextEditingController(
+      text: movie != null && movie.movieDurationMinutes > 0 
+        ? movie.movieDurationMinutes.toString() 
+        : ''
+    );
+    final imageUrlController = TextEditingController(text: movie?.movieImageUrl ?? '');
+    final trailerController = TextEditingController(text: movie?.movieTrailer ?? '');
+    String selectedGenre = movie?.movieGenre ?? _genreOptions.first;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _cardBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(title, style: const TextStyle(color: _textLight)),
-        content: SingleChildScrollView(
-          child: SizedBox(
-            width: 400,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: _cardBg,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: titleController,
-                  style: const TextStyle(color: _textLight),
-                  decoration: _buildInputDecoration('Título'),
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [_primaryBlue, _primaryBlue.withOpacity(0.8)],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        movie == null ? Icons.add_circle_outline : Icons.edit,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: directorController,
-                  style: const TextStyle(color: _textLight),
-                  decoration: _buildInputDecoration('Director'),
+                // Form Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildFormLabel('Título de la película *'),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: titleController,
+                          style: const TextStyle(color: _textLight, fontSize: 16),
+                          decoration: _buildInputDecoration('Ej: Avatar', Icons.movie),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        _buildFormLabel('Descripción *'),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: descriptionController,
+                          style: const TextStyle(color: _textLight, fontSize: 16),
+                          maxLines: 4,
+                          decoration: _buildInputDecoration(
+                            'Describe la trama de la película...',
+                            Icons.description,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        _buildFormLabel('Duración (min) *'),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: durationController,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(color: _textLight, fontSize: 16),
+                          decoration: _buildInputDecoration('120', Icons.access_time),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        _buildFormLabel('Género *'),
+                        const SizedBox(height: 8),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () async {
+                              final result = await showDialog<String>(
+                                context: dialogContext,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: _cardBg,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  title: const Text('Seleccionar Género', style: TextStyle(color: _textLight)),
+                                  content: SizedBox(
+                                    width: double.maxFinite,
+                                    child: ListView.builder(
+                                      shrinkWrap: true,
+                                      itemCount: _genreOptions.length,
+                                      itemBuilder: (context, index) {
+                                        final genre = _genreOptions[index];
+                                        final isSelected = genre == selectedGenre;
+                                        return ListTile(
+                                          leading: Icon(
+                                            Icons.category,
+                                            color: isSelected ? _primaryBlue : _textMuted,
+                                          ),
+                                          title: Text(
+                                            genre,
+                                            style: TextStyle(
+                                              color: isSelected ? _primaryBlue : _textLight,
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                          ),
+                                          trailing: isSelected 
+                                            ? Icon(Icons.check_circle, color: _primaryBlue)
+                                            : null,
+                                          onTap: () => Navigator.pop(ctx, genre),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              );
+                              
+                              if (result != null) {
+                                setDialogState(() {
+                                  selectedGenre = result;
+                                });
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                              decoration: BoxDecoration(
+                                color: _surfaceBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _textMuted.withOpacity(0.2)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.category, color: _textMuted, size: 20),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      selectedGenre,
+                                      style: const TextStyle(
+                                        color: _textLight,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(Icons.arrow_drop_down, color: _textMuted),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        _buildFormLabel('URL de la imagen'),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: imageUrlController,
+                          style: const TextStyle(color: _textLight, fontSize: 16),
+                          decoration: _buildInputDecoration(
+                            'https://ejemplo.com/poster.jpg',
+                            Icons.image,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        _buildFormLabel('URL del trailer'),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: trailerController,
+                          style: const TextStyle(color: _textLight, fontSize: 16),
+                          decoration: _buildInputDecoration(
+                            'https://youtube.com/watch?v=...',
+                            Icons.play_circle_outline,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '* Campos obligatorios',
+                          style: TextStyle(
+                            color: _textMuted,
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: durationController,
-                        keyboardType: TextInputType.number,
-                        style: const TextStyle(color: _textLight),
-                        decoration: _buildInputDecoration('Duración (min)'),
-                      ),
+                // Footer Actions
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: _surfaceBg.withOpacity(0.5),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: priceController,
-                        keyboardType: TextInputType.number,
-                        style: const TextStyle(color: _textLight),
-                        decoration: _buildInputDecoration('Precio'),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        ),
+                        child: Text(
+                          'Cancelar',
+                          style: TextStyle(color: _textMuted, fontSize: 15),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: selectedGenre,
-                        style: const TextStyle(color: _textLight),
-                        decoration: _buildInputDecoration('Género'),
-                        dropdownColor: _surfaceBg,
-                        items: _genreOptions.map((genre) => DropdownMenuItem(
-                          value: genre,
-                          child: Text(genre, style: const TextStyle(color: _textLight)),
-                        )).toList(),
-                        onChanged: (value) => selectedGenre = value!,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_validateMovieForm(
+                              titleController.text,
+                              descriptionController.text,
+                              durationController.text,
+                            )) {
+                              Navigator.pop(dialogContext);
+                              _saveMovie(
+                                movie,
+                                titleController.text,
+                                descriptionController.text,
+                                int.tryParse(durationController.text) ?? 0,
+                                selectedGenre,
+                                imageUrlController.text.isNotEmpty ? imageUrlController.text : null,
+                                trailerController.text.isNotEmpty ? trailerController.text : null,
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryBlue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(movie == null ? Icons.add : Icons.save, size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                movie == null ? 'Agregar' : 'Guardar',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: selectedRating,
-                        style: const TextStyle(color: _textLight),
-                        decoration: _buildInputDecoration('Clasificación'),
-                        dropdownColor: _surfaceBg,
-                        items: _ratingOptions.map((rating) => DropdownMenuItem(
-                          value: rating,
-                          child: Text(rating, style: const TextStyle(color: _textLight)),
-                        )).toList(),
-                        onChanged: (value) => selectedRating = value!,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: selectedStatus,
-                        style: const TextStyle(color: _textLight),
-                        decoration: _buildInputDecoration('Estado'),
-                        dropdownColor: _surfaceBg,
-                        items: ['En Cartelera', 'Próximamente', 'Finalizada'].map((status) => DropdownMenuItem(
-                          value: status,
-                          child: Text(status, style: const TextStyle(color: _textLight)),
-                        )).toList(),
-                        onChanged: (value) => selectedStatus = value!,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: selectedLanguage,
-                        style: const TextStyle(color: _textLight),
-                        decoration: _buildInputDecoration('Idioma'),
-                        dropdownColor: _surfaceBg,
-                        items: ['Español', 'Inglés', 'Subtitulado'].map((lang) => DropdownMenuItem(
-                          value: lang,
-                          child: Text(lang, style: const TextStyle(color: _textLight)),
-                        )).toList(),
-                        onChanged: (value) => selectedLanguage = value!,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: descriptionController,
-                  style: const TextStyle(color: _textLight),
-                  maxLines: 3,
-                  decoration: _buildInputDecoration('Descripción'),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: TextStyle(color: _textMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _saveMovie(
-                movie,
-                titleController.text,
-                directorController.text,
-                int.tryParse(durationController.text) ?? 0,
-                double.tryParse(priceController.text) ?? 0.0,
-                descriptionController.text,
-                selectedGenre,
-                selectedRating,
-                selectedStatus,
-                selectedLanguage,
-                selectedDate,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryBlue,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text(movie == null ? 'Agregar' : 'Guardar'),
-          ),
-        ],
+      )
+    );
+  }
+
+  Widget _buildFormLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(
+        color: _textLight,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
 
-  InputDecoration _buildInputDecoration(String label) {
+  InputDecoration _buildInputDecoration(String hint, IconData icon) {
     return InputDecoration(
-      labelText: label,
-      labelStyle: TextStyle(color: _textMuted),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      hintText: hint,
+      hintStyle: TextStyle(color: _textMuted.withOpacity(0.5), fontSize: 14),
+      prefixIcon: Icon(icon, color: _textMuted, size: 20),
+      filled: true,
+      fillColor: _surfaceBg,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: _textMuted.withOpacity(0.3)),
+        borderSide: BorderSide(color: _textMuted.withOpacity(0.2)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: _primaryBlue),
+        borderSide: BorderSide(color: _primaryBlue, width: 2),
       ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 
-  // Actualizar _saveMovie para usar API
-  void _saveMovie(Movie? existingMovie, String title, String director, int duration,
-      double price, String description, String genre, String rating,
-      String status, String language, DateTime releaseDate) async {
+  void _saveMovie(Movie? existingMovie, String title, String description, 
+      int duration, String genre, String? imageUrl, String? trailer) async {
     
     final movieData = Movie(
-      id: existingMovie?.id ?? 0,
-      title: title,
-      genre: genre,
-      director: director,
-      duration: duration,
-      rating: rating,
-      releaseDate: releaseDate,
-      description: description,
-      posterUrl: existingMovie?.posterUrl ?? '🎬',
-      status: status,
-      language: language,
-      price: price,
-      totalShows: existingMovie?.totalShows ?? 0,
-      ticketsSold: existingMovie?.ticketsSold ?? 0,
-      revenue: existingMovie?.revenue ?? 0.0,
+      movieId: existingMovie?.movieId,
+      movieTitle: title,
+      movieDescription: description,
+      movieDurationMinutes: duration,
+      movieGenre: genre,
+      movieImageUrl: imageUrl,
+      movieTrailer: trailer,
     );
 
     if (existingMovie == null) {
@@ -930,17 +1099,43 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
     }
   }
 
-  // Actualizar _deleteMovie para usar API
+  bool _validateMovieForm(String title, String description, String duration) {
+    if (title.trim().isEmpty) {
+      _showErrorSnackBar('El título es requerido');
+      return false;
+    }
+    if (description.trim().isEmpty) {
+      _showErrorSnackBar('La descripción es requerida');
+      return false;
+    }
+    if (duration.trim().isEmpty || int.tryParse(duration) == null || int.parse(duration) <= 0) {
+      _showErrorSnackBar('La duración debe ser un número válido mayor a 0');
+      return false;
+    }
+    return true;
+  }
+
   void _showDeleteConfirmation(Movie movie) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: _cardBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Confirmar eliminación', style: TextStyle(color: _textLight)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: _dangerRed, size: 28),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Confirmar eliminación',
+                style: TextStyle(color: _textLight, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
         content: Text(
-          '¿Estás seguro de que deseas eliminar "${movie.title}"?',
-          style: TextStyle(color: _textMuted),
+          '¿Estás seguro de que deseas eliminar "${movie.movieTitle}"? Esta acción no se puede deshacer.',
+          style: TextStyle(color: _textMuted, fontSize: 15),
         ),
         actions: [
           TextButton(
@@ -950,13 +1145,16 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              await _deleteMovieFromAPI(movie.id);
+              if (movie.movieId != null) {
+                await _deleteMovie(movie.movieId!);
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: _dangerRed,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Eliminar'),
+            child: const Text('Eliminar', style: TextStyle(fontSize: 15)),
           ),
         ],
       ),
@@ -966,105 +1164,288 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
   void _showMovieDetails(Movie movie) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => Dialog(
         backgroundColor: _cardBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Text(movie.posterUrl, style: const TextStyle(fontSize: 24)),
-            const SizedBox(width: 12),
-            Expanded(child: Text(movie.title, style: const TextStyle(color: _textLight))),
-          ],
-        ),
-        content: SingleChildScrollView(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow('Director', movie.director),
-              _buildDetailRow('Género', movie.genre),
-              _buildDetailRow('Duración', '${movie.duration} minutos'),
-              _buildDetailRow('Clasificación', movie.rating),
-              _buildDetailRow('Idioma', movie.language),
-              _buildDetailRow('Estado', movie.status),
-              _buildDetailRow('Precio', '\$${movie.price.toStringAsFixed(2)}'),
-              _buildDetailRow('Funciones', movie.totalShows.toString()),
-              _buildDetailRow('Tickets vendidos', movie.ticketsSold.toString()),
-              _buildDetailRow('Ingresos', '\$${movie.revenue.toStringAsFixed(2)}'),
-              _buildDetailRow('Estreno', '${movie.releaseDate.day}/${movie.releaseDate.month}/${movie.releaseDate.year}'),
-              const SizedBox(height: 12),
-              Text('Descripción:', style: TextStyle(color: _textMuted, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 4),
-              Text(movie.description, style: const TextStyle(color: _textLight)),
+              // Header
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_primaryBlue, _primaryBlue.withOpacity(0.8)],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.movie, color: Colors.white, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        movie.movieTitle,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              // Content
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (movie.movieImageUrl != null && movie.movieImageUrl!.isNotEmpty) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            movie.movieImageUrl!,
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              height: 200,
+                              color: _surfaceBg,
+                              child: const Center(
+                                child: Icon(Icons.broken_image, size: 48, color: Colors.white54),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      _buildDetailRow('Género', movie.movieGenre, Icons.category),
+                      const SizedBox(height: 12),
+                      _buildDetailRow('Duración', '${movie.movieDurationMinutes} minutos', Icons.access_time),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Descripción:',
+                        style: TextStyle(
+                          color: _textMuted,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        movie.movieDescription,
+                        style: TextStyle(
+                          color: _textLight,
+                          height: 1.5,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (movie.movieTrailer != null && movie.movieTrailer!.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _openTrailer(movie.movieTrailer!),
+                            icon: const Icon(Icons.play_circle_outline, size: 22),
+                            label: const Text('Ver Trailer'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _primaryBlue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              // Footer
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: _surfaceBg.withOpacity(0.5),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: Text(
+                        'Cerrar',
+                        style: TextStyle(color: _textMuted, fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
+      )
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+  Future<void> _openTrailer(String trailerUrl) async {
+    try {
+      // Extraer el ID del video de YouTube
+      String? videoId = YoutubePlayer.convertUrlToId(trailerUrl);
+      
+      if (videoId == null) {
+        _showErrorSnackBar('URL de YouTube inválida');
+        return;
+      }
+
+      // Crear el controlador del reproductor
+      final YoutubePlayerController controller = YoutubePlayerController(
+        initialVideoId: videoId,
+        flags: const YoutubePlayerFlags(
+          autoPlay: true,
+          mute: false,
+          enableCaption: true,
+        ),
+      );
+
+      // Mostrar el reproductor en un diálogo
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.black,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _cardBg,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.play_circle_outline, color: _primaryBlue, size: 24),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Trailer',
+                        style: TextStyle(
+                          color: _textLight,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        controller.dispose();
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.close, color: _textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              // Player
+              YoutubePlayer(
+                controller: controller,
+                showVideoProgressIndicator: true,
+                progressIndicatorColor: _primaryBlue,
+                progressColors: ProgressBarColors(
+                  playedColor: _primaryBlue,
+                  handleColor: _primaryBlue,
+                  bufferedColor: _textMuted,
+                  backgroundColor: _surfaceBg,
+                ),
+                onReady: () {
+                  print('Player listo');
+                },
+                onEnded: (data) {
+                  controller.dispose();
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        ),
+      ).then((_) {
+        // Asegurarse de que el controlador se limpie cuando se cierra el diálogo
+        controller.dispose();
+      });
+    } catch (e) {
+      print('Error al abrir trailer: $e');
+      _showErrorSnackBar('Error al reproducir el trailer: ${e.toString()}');
+    }
+  }
+
+  Widget _buildDetailRow(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _surfaceBg.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _primaryBlue.withOpacity(0.2)),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              '$label:',
-              style: TextStyle(color: _textMuted, fontWeight: FontWeight.w500),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _primaryBlue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: Icon(icon, color: _primaryBlue, size: 18),
           ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(color: _textLight),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: _textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: _textLight,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showShowtimesDialog(Movie movie) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _cardBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.schedule, color: _warningAmber),
-            const SizedBox(width: 8),
-            Text('Funciones - ${movie.title}', style: const TextStyle(color: _textLight)),
-          ],
-        ),
-        content: Text(
-          'Aquí se mostrarían las funciones programadas para esta película.',
-          style: TextStyle(color: _textMuted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Navegar a gestión de funciones
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _warningAmber,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Gestionar Funciones'),
           ),
         ],
       ),
@@ -1085,96 +1466,5 @@ class _MoviesAdminPageState extends State<MoviesAdminPage> with SingleTickerProv
         ),
       ),
     );
-  }
-  Widget _buildHeader() {
-  return const Padding(
-    padding: EdgeInsets.all(16),
-    child: Text(
-      "Administración de Películas",
-      style: TextStyle(
-        fontSize: 22,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-  );
-}
-
-}
-
-// Actualizar la clase Movie con métodos de serialización
-class Movie {
-  int id;
-  String title;
-  String genre;
-  String director;
-  int duration;
-  String rating;
-  DateTime releaseDate;
-  String description;
-  String posterUrl;
-  String status;
-  String language;
-  double price;
-  int totalShows;
-  int ticketsSold;
-  double revenue;
-
-  Movie({
-    required this.id,
-    required this.title,
-    required this.genre,
-    required this.director,
-    required this.duration,
-    required this.rating,
-    required this.releaseDate,
-    required this.description,
-    required this.posterUrl,
-    required this.status,
-    required this.language,
-    required this.price,
-    required this.totalShows,
-    required this.ticketsSold,
-    required this.revenue,
-  });
-
-  factory Movie.fromJson(Map<String, dynamic> json) {
-    return Movie(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? '',
-      genre: json['genre'] ?? '',
-      director: json['director'] ?? '',
-      duration: json['duration'] ?? 0,
-      rating: json['rating'] ?? '',
-      releaseDate: json['release_date'] != null 
-        ? DateTime.tryParse(json['release_date']) ?? DateTime.now()
-        : DateTime.now(),
-      description: json['description'] ?? '',
-      posterUrl: json['poster_url'] ?? '🎬',
-      status: json['status'] ?? 'Próximamente',
-      language: json['language'] ?? 'Español',
-      price: (json['price'] ?? 0).toDouble(),
-      totalShows: json['total_shows'] ?? 0,
-      ticketsSold: json['tickets_sold'] ?? 0,
-      revenue: (json['revenue'] ?? 0).toDouble(),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'title': title,
-      'genre': genre,
-      'director': director,
-      'duration': duration,
-      'rating': rating,
-      'release_date': releaseDate.toIso8601String().split('T')[0],
-      'description': description,
-      'poster_url': posterUrl,
-      'status': status,
-      'language': language,
-      'price': price,
-      'total_shows': totalShows,
-      'tickets_sold': ticketsSold,
-      'revenue': revenue,
-    };
   }
 }

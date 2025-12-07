@@ -180,7 +180,7 @@ class MovieService {
     try {
       print('[MovieService] Actualizando película ID: $id');
       
-      final response = await _apiService.put(
+      final response = await _apiService.patch(
         '${AppConstants.moviesEndpoint}/$id',
         data: movie.toJson(),
       );

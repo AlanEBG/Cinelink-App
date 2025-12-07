@@ -103,7 +103,7 @@ class RoomService {
   // Actualizar una sala (Admin)
   Future<Room?> updateRoom(int id, Room room) async {
     try {
-      final response = await _apiService.put(
+      final response = await _apiService.patch(
         '${AppConstants.roomsEndpoint}/$id',
         data: room.toJson(),
       );

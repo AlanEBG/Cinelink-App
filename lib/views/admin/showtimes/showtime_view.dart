@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../../models/showtime.dart';
+import '../../../models/movie.dart';
+import '../../../models/room.dart';
+import '../../../services/showtime_service.dart';
+import '../../../services/movie_service.dart';
+import '../../../services/room_service.dart';
 
 class ShowtimesAdminPage extends StatefulWidget {
   const ShowtimesAdminPage({super.key});
@@ -12,9 +18,14 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
   late Animation<double> _fadeAnimation;
   
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  final ShowtimeService _showtimeService = ShowtimeService();
+  final MovieService _movieService = MovieService();
+  final RoomService _roomService = RoomService();
+  
   String _searchQuery = '';
-  String _selectedFilter = 'Todas';
   DateTime _selectedDate = DateTime.now();
+  bool _isSearchFocused = false;
   
   // Colores modernos
   static const Color _darkBg = Color(0xFF0F172A);
@@ -24,75 +35,28 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
   static const Color _successGreen = Color(0xFF10B981);
   static const Color _warningAmber = Color(0xFFF59E0B);
   static const Color _dangerRed = Color(0xFFEF4444);
-  static const Color _purpleAccent = Color(0xFF8B5CF6);
   static const Color _textLight = Color(0xFFF8FAFC);
   static const Color _textMuted = Color(0xFF94A3B8);
 
-  // Lista simulada de funciones (reemplazar con API call)
-  List<Showtime> _showtimes = [
-    Showtime(
-      id: 1,
-      movieTitle: 'Avatar: El Camino del Agua',
-      movieGenre: 'Ciencia Ficción',
-      roomName: 'Sala Premium 1',
-      roomCapacity: 80,
-      startTime: DateTime(2024, 1, 20, 14, 30),
-      endTime: DateTime(2024, 1, 20, 17, 45),
-      price: 12.50,
-      availableSeats: 65,
-      status: 'Activa',
-      language: 'Español',
-      subtitles: true,
-    ),
-    Showtime(
-      id: 2,
-      movieTitle: 'Top Gun: Maverick',
-      movieGenre: 'Acción',
-      roomName: 'Sala VIP 2',
-      roomCapacity: 40,
-      startTime: DateTime(2024, 1, 20, 19, 00),
-      endTime: DateTime(2024, 1, 20, 21, 30),
-      price: 18.00,
-      availableSeats: 28,
-      status: 'Activa',
-      language: 'Inglés',
-      subtitles: true,
-    ),
-    Showtime(
-      id: 3,
-      movieTitle: 'Dune: Parte Dos',
-      movieGenre: 'Ciencia Ficción',
-      roomName: 'Sala IMAX',
-      roomCapacity: 120,
-      startTime: DateTime(2024, 1, 21, 21, 15),
-      endTime: DateTime(2024, 1, 22, 0, 30),
-      price: 15.75,
-      availableSeats: 0,
-      status: 'Agotada',
-      language: 'Inglés',
-      subtitles: true,
-    ),
-    Showtime(
-      id: 4,
-      movieTitle: 'Spider-Man: No Way Home',
-      movieGenre: 'Acción',
-      roomName: 'Sala Estándar 3',
-      roomCapacity: 100,
-      startTime: DateTime(2024, 1, 22, 16, 00),
-      endTime: DateTime(2024, 1, 22, 18, 30),
-      price: 10.00,
-      availableSeats: 85,
-      status: 'Programada',
-      language: 'Español',
-      subtitles: false,
-    ),
-  ];
+  List<Showtime> _showtimes = [];
+  List<Movie> _movies = [];
+  List<Room> _rooms = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  final List<String> _filterOptions = ['Todas', 'Activa', 'Programada', 'Agotada', 'Cancelada'];
+  final List<String> _languageOptions = ['Español', 'Ingles', 'Subtitulado'];
+  String? _quickFilter;
 
   @override
   void initState() {
     super.initState();
+    _setupAnimations();
+    _setupSearchListener();
+    _setupFocusListener();
+    _loadData();
+  }
+
+  void _setupAnimations() {
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -101,10 +65,20 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     _animationController.forward();
-    
+  }
+
+  void _setupSearchListener() {
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
+  }
+
+  void _setupFocusListener() {
+    _searchFocusNode.addListener(() {
+      setState(() {
+        _isSearchFocused = _searchFocusNode.hasFocus;
       });
     });
   }
@@ -113,25 +87,114 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
   void dispose() {
     _animationController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final showtimes = await _showtimeService.getAllShowtimes();
+      final movies = await _movieService.getAllMovies();
+      final rooms = await _roomService.getAllRooms();
+      
+      setState(() {
+        _showtimes = showtimes;
+        _movies = movies;
+        _rooms = rooms;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error al cargar datos: $e';
+      });
+    }
+  }
+
+  Future<void> _addShowtime(Showtime showtime) async {
+    try {
+      await _showtimeService.createShowtime(showtime);
+      await _loadData();
+      _showSuccessSnackBar('Función agregada correctamente');
+    } catch (e) {
+      _showErrorSnackBar('Error al agregar función: $e');
+    }
+  }
+
+  Future<void> _updateShowtime(Showtime showtime) async {
+    try {
+      await _showtimeService.updateShowtime(showtime.id!, showtime);
+      await _loadData();
+      _showSuccessSnackBar('Función actualizada correctamente');
+    } catch (e) {
+      _showErrorSnackBar('Error al actualizar función: $e');
+    }
+  }
+
+  Future<void> _deleteShowtime(String showtimeId) async {
+    try {
+      await _showtimeService.deleteShowtime(showtimeId);
+      await _loadData();
+      _showSuccessSnackBar('Función eliminada correctamente');
+    } catch (e) {
+      _showErrorSnackBar('Error al eliminar función: $e');
+    }
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: _successGreen,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: _dangerRed,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   List<Showtime> get _filteredShowtimes {
-    List<Showtime> filtered = _showtimes;
+    if (_searchQuery.isEmpty) return _showtimes;
     
-    if (_selectedFilter != 'Todas') {
-      filtered = filtered.where((showtime) => showtime.status == _selectedFilter).toList();
+    return _showtimes.where((showtime) {
+      final movie = _getMovieById(showtime.movieId);
+      final room = showtime.room ?? _getRoomById(showtime.roomId);
+      
+      return movie?.movieTitle.toLowerCase().contains(_searchQuery) == true ||
+             room?.roomName.toLowerCase().contains(_searchQuery) == true ||
+             showtime.lenguage.toLowerCase().contains(_searchQuery);
+    }).toList();
+  }
+
+  Movie? _getMovieById(int? movieId) {
+    if (movieId == null) return null;
+    try {
+      return _movies.firstWhere((m) => m.movieId == movieId);
+    } catch (e) {
+      return null;
     }
-    
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((showtime) =>
-        showtime.movieTitle.toLowerCase().contains(_searchQuery) ||
-        showtime.roomName.toLowerCase().contains(_searchQuery) ||
-        showtime.movieGenre.toLowerCase().contains(_searchQuery)
-      ).toList();
+  }
+
+  Room? _getRoomById(int? roomId) {
+    if (roomId == null) return null;
+    try {
+      return _rooms.firstWhere((r) => r.roomId == roomId);
+    } catch (e) {
+      return null;
     }
-    
-    return filtered;
   }
 
   Widget _buildHeader() {
@@ -141,23 +204,46 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_primaryBlue, _primaryBlue.withOpacity(0.8)],
+          colors: [
+            _primaryBlue,
+            _primaryBlue.withOpacity(0.85),
+          ],
         ),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(32),
           bottomRight: Radius.circular(32),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryBlue.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+              // Botón de retroceso
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                  tooltip: 'Volver',
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 16),
+              // Título y subtítulo
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,152 +254,260 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
                         color: Colors.white,
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
                       ),
                     ),
+                    const SizedBox(height: 4),
                     Text(
-                      'Administrar horarios y programación',
+                      'Administrar horarios y disponibilidad',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.9),
-                        fontSize: 16,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
-              FloatingActionButton(
-                onPressed: () => _showAddShowtimeDialog(),
-                backgroundColor: _successGreen,
-                heroTag: "addShowtime",
-                child: const Icon(Icons.add, color: Colors.white),
+              // Botón agregar
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _showShowtimeDialog(
+                      title: 'Nueva Función',
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.add_circle,
+                            color: _primaryBlue,
+                            size: 22,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Agregar',
+                            style: TextStyle(
+                              color: _primaryBlue,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 24),
-          _buildSearchAndFilters(),
+          // Barra de búsqueda
+          _buildSearchBar(),
+          
+          // Filtros rápidos (opcional)
+          if (_searchQuery.isEmpty) ...[
+            const SizedBox(height: 16),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildQuickFilter('Todas', null),
+                  const SizedBox(width: 8),
+                  _buildQuickFilter('Hoy', 'today'),
+                  const SizedBox(width: 8),
+                  _buildQuickFilter('Esta Semana', 'week'),
+                  const SizedBox(width: 8),
+                  _buildQuickFilter('Español', 'español'),
+                  const SizedBox(width: 8),
+                  _buildQuickFilter('Inglés', 'ingles'),
+                  const SizedBox(width: 8),
+                  _buildQuickFilter('Subtitulado', 'subtitulado'),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildSearchAndFilters() {
-    return Column(
-      children: [
-        Row(
+  // Nuevo método para filtros rápidos
+  Widget _buildQuickFilter(String label, String? filter) {
+    final isActive = _quickFilter == filter;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _quickFilter = filter;
+          if (filter != null) {
+            _searchController.text = label;
+          } else {
+            _searchController.clear();
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? Colors.white : Colors.white.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Buscar funciones...',
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-                    prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8)),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                ),
+            if (filter != null) ...[
+              Icon(
+                _getFilterIcon(filter),
+                size: 16,
+                color: isActive ? _primaryBlue : Colors.white,
               ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DropdownButton<String>(
-                value: _selectedFilter,
-                dropdownColor: _surfaceBg,
-                underline: const SizedBox(),
-                icon: Icon(Icons.filter_list, color: Colors.white.withOpacity(0.8)),
-                style: const TextStyle(color: Colors.white),
-                items: _filterOptions.map((filter) => DropdownMenuItem(
-                  value: filter,
-                  child: Text(filter, style: const TextStyle(color: Colors.white)),
-                )).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedFilter = value!;
-                  });
-                },
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? _primaryBlue : Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        _buildDateSelector(),
-      ],
+      ),
     );
   }
 
-  Widget _buildDateSelector() {
-    return SizedBox(
-      height: 60,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: 7,
-        itemBuilder: (context, index) {
-          final date = DateTime.now().add(Duration(days: index));
-          final isSelected = date.day == _selectedDate.day && date.month == _selectedDate.month;
-          
-          return GestureDetector(
-            onTap: () => setState(() => _selectedDate = date),
-            child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][date.weekday % 7],
-                    style: TextStyle(
-                      color: isSelected ? _primaryBlue : Colors.white.withOpacity(0.8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    date.day.toString(),
-                    style: TextStyle(
-                      color: isSelected ? _primaryBlue : Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+  IconData _getFilterIcon(String filter) {
+    switch (filter) {
+      case 'today':
+        return Icons.today;
+      case 'week':
+        return Icons.calendar_month;
+      case 'español':
+      case 'ingles':
+      case 'subtitulado':
+        return Icons.language;
+      default:
+        return Icons.filter_list;
+    }
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        style: const TextStyle(
+          color: Color(0xFF1E2A47),
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Buscar por película, sala o idioma...',
+          hintStyle: TextStyle(
+            color: _textMuted.withOpacity(0.5),
+            fontSize: 15,
+            fontWeight: FontWeight.normal,
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Icon(
+              Icons.search_rounded,
+              color: _textMuted.withOpacity(0.6),
+              size: 24,
             ),
-          );
-        },
+          ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: Icon(
+                    Icons.clear_rounded,
+                    color: _textMuted,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    _searchFocusNode.unfocus();
+                  },
+                  tooltip: 'Limpiar búsqueda',
+                )
+              : null,
+          border: InputBorder.none,
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: Colors.grey.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: _primaryBlue.withOpacity(0.5),
+              width: 2,
+            ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
+          filled: true,
+          fillColor: Colors.white,
+        ),
       ),
     );
   }
 
   Widget _buildStatsCards() {
-    final activeShowtimes = _showtimes.where((s) => s.status == 'Activa').length;
-    final soldOutShowtimes = _showtimes.where((s) => s.status == 'Agotada').length;
-    final totalRevenue = _showtimes.fold<double>(0.0, (sum, showtime) => 
-      sum + (showtime.price * (showtime.roomCapacity - showtime.availableSeats))
-    );
+    final today = DateTime.now();
+    final todayShowtimes = _showtimes.where((s) => 
+      s.dateTime.year == today.year &&
+      s.dateTime.month == today.month &&
+      s.dateTime.day == today.day
+    ).length;
+
+    final totalSeats = _showtimes.fold(0, (sum, s) => sum + s.remainingSeats);
 
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Row(
         children: [
-          _buildStatCard('Activas', activeShowtimes.toString(), Icons.play_circle, _successGreen),
+          _buildStatCard('Total', _showtimes.length.toString(), Icons.movie, _primaryBlue),
           const SizedBox(width: 12),
-          _buildStatCard('Agotadas', soldOutShowtimes.toString(), Icons.event_busy, _dangerRed),
+          _buildStatCard('Hoy', todayShowtimes.toString(), Icons.today, _successGreen),
           const SizedBox(width: 12),
-          _buildStatCard('Ingresos', '\$${totalRevenue.toStringAsFixed(0)}', Icons.attach_money, _warningAmber),
+          _buildStatCard('Asientos', totalSeats.toString(), Icons.event_seat, _warningAmber),
         ],
       ),
     );
@@ -346,7 +540,6 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
                 color: _textMuted,
                 fontSize: 12,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -355,30 +548,95 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
   }
 
   Widget _buildShowtimesList() {
+    if (_isLoading) {
+      return const Expanded(
+        child: Center(
+          child: CircularProgressIndicator(color: _primaryBlue),
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: _dangerRed, size: 64),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage!,
+                style: TextStyle(color: _dangerRed),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryBlue,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_filteredShowtimes.isEmpty) {
+      return Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.event_busy, color: _textMuted, size: 64),
+              const SizedBox(height: 16),
+              Text(
+                _searchQuery.isNotEmpty ? 'No se encontraron funciones' : 'No hay funciones disponibles',
+                style: TextStyle(color: _textMuted, fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _searchQuery.isNotEmpty ? 'Intenta con otra búsqueda' : 'Agrega tu primera función',
+                style: TextStyle(color: _textMuted),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Expanded(
       child: FadeTransition(
         opacity: _fadeAnimation,
-        child: ListView.builder(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          itemCount: _filteredShowtimes.length,
-          itemBuilder: (context, index) {
-            final showtime = _filteredShowtimes[index];
-            return _buildShowtimeCard(showtime, index);
-          },
+        child: RefreshIndicator(
+          onRefresh: _loadData,
+          color: _primaryBlue,
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            itemCount: _filteredShowtimes.length,
+            itemBuilder: (context, index) {
+              final showtime = _filteredShowtimes[index];
+              return _buildShowtimeCard(showtime, index);
+            },
+          ),
         ),
       ),
     );
   }
 
   Widget _buildShowtimeCard(Showtime showtime, int index) {
-    final occupancyRate = ((showtime.roomCapacity - showtime.availableSeats) / showtime.roomCapacity * 100);
+    final movie = showtime.movie ?? _getMovieById(showtime.movieId);
+    final room = showtime.room ?? _getRoomById(showtime.roomId);
     
     return TweenAnimationBuilder(
-      duration: Duration(milliseconds: 600 + (index * 100)),
+      duration: Duration(milliseconds: 400 + (index * 50)),
       tween: Tween<double>(begin: 0, end: 1),
       builder: (context, double value, child) {
         return Transform.translate(
-          offset: Offset(0, 50 * (1 - value)),
+          offset: Offset(0, 30 * (1 - value)),
           child: Opacity(
             opacity: value,
             child: Container(
@@ -386,24 +644,22 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
               decoration: BoxDecoration(
                 color: _cardBg,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _getStatusColor(showtime.status).withOpacity(0.3),
-                ),
+                border: Border.all(color: _primaryBlue.withOpacity(0.2)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
                 ],
               ),
               child: Column(
                 children: [
-                  // Header de la función
+                  // Header
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(showtime.status).withOpacity(0.1),
+                      color: _primaryBlue.withOpacity(0.1),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(20),
                         topRight: Radius.circular(20),
@@ -414,12 +670,12 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: _getStatusColor(showtime.status).withOpacity(0.2),
+                            color: _primaryBlue.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
                             Icons.movie,
-                            color: _getStatusColor(showtime.status),
+                            color: _primaryBlue,
                             size: 24,
                           ),
                         ),
@@ -429,102 +685,58 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                showtime.movieTitle,
+                                movie?.movieTitle ?? 'Película no encontrada',
                                 style: const TextStyle(
                                   color: _textLight,
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: _primaryBlue.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      showtime.movieGenre,
-                                      style: TextStyle(
-                                        color: _primaryBlue,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: _getStatusColor(showtime.status),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      showtime.status,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                room?.roomName ?? 'Sala no encontrada',
+                                style: TextStyle(
+                                  color: _textMuted,
+                                  fontSize: 14,
+                                ),
                               ),
                             ],
-                          ),
-                        ),
-                        Text(
-                          '\$${showtime.price.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: _warningAmber,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         PopupMenuButton<String>(
                           icon: Icon(Icons.more_vert, color: _textMuted),
                           color: _surfaceBg,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           onSelected: (value) => _handleMenuAction(value, showtime),
                           itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'view',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.visibility, color: _primaryBlue, size: 18),
+                                  const SizedBox(width: 12),
+                                  Text('Ver Detalles', style: TextStyle(color: _textLight)),
+                                ],
+                              ),
+                            ),
                             PopupMenuItem(
                               value: 'edit',
                               child: Row(
                                 children: [
-                                  Icon(Icons.edit, color: _primaryBlue, size: 18),
-                                  const SizedBox(width: 8),
+                                  Icon(Icons.edit, color: _successGreen, size: 18),
+                                  const SizedBox(width: 12),
                                   Text('Editar', style: TextStyle(color: _textLight)),
                                 ],
                               ),
                             ),
                             PopupMenuItem(
-                              value: 'duplicate',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.copy, color: _successGreen, size: 18),
-                                  const SizedBox(width: 8),
-                                  Text('Duplicar', style: TextStyle(color: _textLight)),
-                                ],
-                              ),
-                            ),
-                            if (showtime.status != 'Cancelada')
-                              PopupMenuItem(
-                                value: 'cancel',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.cancel, color: _dangerRed, size: 18),
-                                    const SizedBox(width: 8),
-                                    Text('Cancelar', style: TextStyle(color: _textLight)),
-                                  ],
-                                ),
-                              ),
-                            PopupMenuItem(
                               value: 'delete',
                               child: Row(
                                 children: [
                                   Icon(Icons.delete, color: _dangerRed, size: 18),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 12),
                                   Text('Eliminar', style: TextStyle(color: _textLight)),
                                 ],
                               ),
@@ -534,7 +746,7 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
                       ],
                     ),
                   ),
-                  // Contenido de la función
+                  // Contenido
                   Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -542,68 +754,62 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
                         Row(
                           children: [
                             Expanded(
-                              child: _buildInfoItem('Sala', showtime.roomName, Icons.meeting_room),
-                            ),
-                            Expanded(
                               child: _buildInfoItem(
-                                'Horario',
-                                '${showtime.startTime.hour}:${showtime.startTime.minute.toString().padLeft(2, '0')} - ${showtime.endTime.hour}:${showtime.endTime.minute.toString().padLeft(2, '0')}',
+                                'Fecha y Hora',
+                                '${showtime.dateTime.day}/${showtime.dateTime.month}/${showtime.dateTime.year} ${showtime.dateTime.hour}:${showtime.dateTime.minute.toString().padLeft(2, '0')}',
                                 Icons.schedule,
                               ),
                             ),
+                            Expanded(
+                              child: _buildInfoItem(
+                                'Precio',
+                                '\$${showtime.price.toStringAsFixed(2)}',
+                                Icons.attach_money,
+                              ),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         Row(
                           children: [
                             Expanded(
-                              child: _buildInfoItem('Idioma', showtime.language, Icons.language),
+                              child: _buildInfoItem(
+                                'Asientos',
+                                '${showtime.remainingSeats} disponibles',
+                                Icons.event_seat,
+                              ),
                             ),
                             Expanded(
-                              child: _buildInfoItem('Subtítulos', showtime.subtitles ? 'Sí' : 'No', Icons.closed_caption),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Barra de ocupación
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Ocupación',
-                                  style: TextStyle(color: _textMuted, fontSize: 14),
-                                ),
-                                Text(
-                                  '${showtime.roomCapacity - showtime.availableSeats}/${showtime.roomCapacity} (${occupancyRate.toStringAsFixed(1)}%)',
-                                  style: const TextStyle(color: _textLight, fontSize: 14, fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            LinearProgressIndicator(
-                              value: occupancyRate / 100,
-                              backgroundColor: _textMuted.withOpacity(0.2),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                occupancyRate > 80 ? _dangerRed :
-                                occupancyRate > 50 ? _warningAmber : _successGreen,
+                              child: _buildInfoItem(
+                                'Idioma',
+                                showtime.lenguage,
+                                Icons.language,
                               ),
-                              borderRadius: BorderRadius.circular(4),
                             ),
                           ],
                         ),
+                        if (movie?.movieGenre != null) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              _buildChip(movie!.movieGenre, _primaryBlue),
+                              _buildChip('${movie.movieDurationMinutes} min', Colors.orange),
+                              _buildChip(showtime.lenguage, Colors.purple),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-          ),
+          )
         );
-      },
-    );
+        },
+      );
   }
 
   Widget _buildInfoItem(String label, String value, IconData icon) {
@@ -637,26 +843,32 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Activa': return _successGreen;
-      case 'Programada': return _primaryBlue;
-      case 'Agotada': return _warningAmber;
-      case 'Cancelada': return _dangerRed;
-      default: return _textMuted;
-    }
+  Widget _buildChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 
   void _handleMenuAction(String action, Showtime showtime) {
     switch (action) {
+      case 'view':
+        _showShowtimeDetails(showtime);
+        break;
       case 'edit':
         _showEditShowtimeDialog(showtime);
-        break;
-      case 'duplicate':
-        _duplicateShowtime(showtime);
-        break;
-      case 'cancel':
-        _cancelShowtime(showtime);
         break;
       case 'delete':
         _showDeleteConfirmation(showtime);
@@ -673,235 +885,575 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
   }
 
   void _showShowtimeDialog({required String title, Showtime? showtime}) {
-    final movieController = TextEditingController(text: showtime?.movieTitle ?? '');
-    final roomController = TextEditingController(text: showtime?.roomName ?? '');
+    int? selectedMovieId = showtime?.movieId ?? (_movies.isNotEmpty ? _movies.first.movieId : null);
+    int? selectedRoomId = showtime?.roomId ?? (_rooms.isNotEmpty ? _rooms.first.roomId : null);
+    DateTime selectedDateTime = showtime?.dateTime ?? DateTime.now();
     final priceController = TextEditingController(text: showtime?.price.toString() ?? '');
-    DateTime selectedDateTime = showtime?.startTime ?? DateTime.now();
-    String selectedLanguage = showtime?.language ?? 'Español';
-    bool hasSubtitles = showtime?.subtitles ?? true;
+    final seatsController = TextEditingController(text: showtime?.remainingSeats.toString() ?? '');
+    String selectedLanguage = showtime?.lenguage ?? _languageOptions.first;
 
+    if (_movies.isEmpty || _rooms.isEmpty) {
+      _showErrorSnackBar('No hay películas o salas disponibles');
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            backgroundColor: _cardBg,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [_primaryBlue, _primaryBlue.withOpacity(0.8)],
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          showtime == null ? Icons.add_circle_outline : Icons.edit,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Form Content
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Película
+                          _buildFormLabel('Película *'),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: _surfaceBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _textMuted.withOpacity(0.3)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                value: selectedMovieId,
+                                isExpanded: true,
+                                style: const TextStyle(color: _textLight, fontSize: 16),
+                                dropdownColor: _surfaceBg,
+                                icon: Icon(Icons.arrow_drop_down, color: _textMuted),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                items: _movies.map((movie) => DropdownMenuItem(
+                                  value: movie.movieId,
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.movie, color: _textMuted, size: 20),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          movie.movieTitle,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )).toList(),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      selectedMovieId = value;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          
+                          // Sala
+                          _buildFormLabel('Sala *'),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: _surfaceBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _textMuted.withOpacity(0.3)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                value: selectedRoomId,
+                                isExpanded: true,
+                                style: const TextStyle(color: _textLight, fontSize: 16),
+                                dropdownColor: _surfaceBg,
+                                icon: Icon(Icons.arrow_drop_down, color: _textMuted),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                items: _rooms.map((room) => DropdownMenuItem(
+                                  value: room.roomId,
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.meeting_room, color: _textMuted, size: 20),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          room.roomName,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )).toList(),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      selectedRoomId = value;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          
+                          // Fecha y Hora
+                          _buildFormLabel('Fecha y Hora *'),
+                          const SizedBox(height: 8),
+                          InkWell(
+                            onTap: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDateTime,
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: ColorScheme.dark(
+                                        primary: _primaryBlue,
+                                        surface: _cardBg,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              
+                              if (date != null) {
+                                final time = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay.fromDateTime(selectedDateTime),
+                                  builder: (context, child) {
+                                    return Theme(
+                                      data: Theme.of(context).copyWith(
+                                        colorScheme: ColorScheme.dark(
+                                          primary: _primaryBlue,
+                                          surface: _cardBg,
+                                        ),
+                                      ),
+                                      child: child!,
+                                    );
+                                  },
+                                );
+                                
+                                if (time != null) {
+                                  setState(() {
+                                    selectedDateTime = DateTime(
+                                      date.year,
+                                      date.month,
+                                      date.day,
+                                      time.hour,
+                                      time.minute,
+                                    );
+                                  });
+                                }
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: _surfaceBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _textMuted.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calendar_today, color: _textMuted, size: 20),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    '${selectedDateTime.day.toString().padLeft(2, '0')}/${selectedDateTime.month.toString().padLeft(2, '0')}/${selectedDateTime.year} ${selectedDateTime.hour.toString().padLeft(2, '0')}:${selectedDateTime.minute.toString().padLeft(2, '0')}',
+                                    style: const TextStyle(color: _textLight, fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          
+                          // Precio y Asientos
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildFormLabel('Precio *'),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: priceController,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(color: _textLight, fontSize: 16),
+                                      decoration: _buildInputDecoration('10.00', Icons.attach_money),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildFormLabel('Asientos *'),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: seatsController,
+                                      keyboardType: TextInputType.number,
+                                      style: const TextStyle(color: _textLight, fontSize: 16),
+                                      decoration: _buildInputDecoration('50', Icons.event_seat),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          
+                          // Idioma
+                          _buildFormLabel('Idioma *'),
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: _surfaceBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: _textMuted.withOpacity(0.3)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: selectedLanguage,
+                                isExpanded: true,
+                                style: const TextStyle(color: _textLight, fontSize: 16),
+                                dropdownColor: _surfaceBg,
+                                icon: Icon(Icons.arrow_drop_down, color: _textMuted),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                items: _languageOptions.map((lang) => DropdownMenuItem(
+                                  value: lang,
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.language, color: _textMuted, size: 20),
+                                      const SizedBox(width: 12),
+                                      Text(lang),
+                                    ],
+                                  ),
+                                )).toList(),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      selectedLanguage = value;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '* Campos obligatorios',
+                            style: TextStyle(
+                              color: _textMuted,
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Footer Actions
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: _surfaceBg.withOpacity(0.5),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          ),
+                          child: Text(
+                            'Cancelar',
+                            style: TextStyle(color: _textMuted, fontSize: 16),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: () {
+                            if (_validateShowtimeForm(
+                              selectedMovieId,
+                              selectedRoomId,
+                              priceController.text,
+                              seatsController.text,
+                            )) {
+                              Navigator.pop(context);
+                              _saveShowtime(
+                                showtime,
+                                selectedMovieId!,
+                                selectedRoomId!,
+                                selectedDateTime,
+                                double.tryParse(priceController.text) ?? 0.0,
+                                int.tryParse(seatsController.text) ?? 0,
+                                selectedLanguage,
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primaryBlue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(showtime == null ? Icons.add : Icons.save, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                showtime == null ? 'Agregar' : 'Guardar',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFormLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(
+        color: _textLight,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  InputDecoration _buildInputDecoration(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: _textMuted.withOpacity(0.5), fontSize: 14),
+      prefixIcon: Icon(icon, color: _textMuted, size: 20),
+      filled: true,
+      fillColor: _surfaceBg,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: _textMuted.withOpacity(0.2)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: _primaryBlue, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+
+  bool _validateShowtimeForm(int? movieId, int? roomId, String price, String seats) {
+    if (movieId == null || roomId == null) {
+      _showErrorSnackBar('Todos los campos son requeridos');
+      return false;
+    }
+    if (price.trim().isEmpty || double.tryParse(price) == null || double.parse(price) <= 0) {
+      _showErrorSnackBar('El precio debe ser un número válido mayor a 0');
+      return false;
+    }
+    if (seats.trim().isEmpty || int.tryParse(seats) == null || int.parse(seats) <= 0) {
+      _showErrorSnackBar('Los asientos deben ser un número válido mayor a 0');
+      return false;
+    }
+    return true;
+  }
+
+  void _saveShowtime(Showtime? existingShowtime, int movieId, int roomId, 
+      DateTime dateTime, double price, int seats, String language) async {
+    
+    final showtimeData = Showtime(
+      id: existingShowtime?.id,
+      dateTime: dateTime,
+      price: price,
+      remainingSeats: seats,
+      lenguage: language,
+      movieId: movieId,
+      roomId: roomId,
+    );
+
+    if (existingShowtime == null) {
+      await _addShowtime(showtimeData);
+    } else {
+      await _updateShowtime(showtimeData);
+    }
+  }
+
+  void _showDeleteConfirmation(Showtime showtime) {
+    final movie = showtime.movie ?? _getMovieById(showtime.movieId);
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: _cardBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(title, style: const TextStyle(color: _textLight)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: _dangerRed, size: 28),
+            const SizedBox(width: 12),
+            const Text('Confirmar eliminación', style: TextStyle(color: _textLight)),
+          ],
+        ),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar la función de "${movie?.movieTitle ?? 'Película desconocida'}"? Esta acción no se puede deshacer.',
+          style: TextStyle(color: _textMuted, fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: TextStyle(color: _textMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              if (showtime.id != null) {
+                await _deleteShowtime(showtime.id!);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _dangerRed,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Eliminar', style: TextStyle(fontSize: 16)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showShowtimeDetails(Showtime showtime) {
+    final movie = showtime.movie ?? _getMovieById(showtime.movieId);
+    final room = showtime.room ?? _getRoomById(showtime.roomId);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _cardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(movie?.movieTitle ?? 'Función', style: const TextStyle(color: _textLight, fontSize: 22)),
         content: SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: movieController,
-                style: const TextStyle(color: _textLight),
-                decoration: InputDecoration(
-                  labelText: 'Película',
-                  labelStyle: TextStyle(color: _textMuted),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _textMuted.withOpacity(0.3)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _primaryBlue),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: roomController,
-                style: const TextStyle(color: _textLight),
-                decoration: InputDecoration(
-                  labelText: 'Sala',
-                  labelStyle: TextStyle(color: _textMuted),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _textMuted.withOpacity(0.3)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _primaryBlue),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: priceController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: _textLight),
-                decoration: InputDecoration(
-                  labelText: 'Precio',
-                  labelStyle: TextStyle(color: _textMuted),
-                  prefixText: '\$',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _textMuted.withOpacity(0.3)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _primaryBlue),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedLanguage,
-                style: const TextStyle(color: _textLight),
-                decoration: InputDecoration(
-                  labelText: 'Idioma',
-                  labelStyle: TextStyle(color: _textMuted),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _textMuted.withOpacity(0.3)),
-                  ),
-                ),
-                dropdownColor: _surfaceBg,
-                items: ['Español', 'Inglés', 'Subtitulado']
-                    .map((lang) => DropdownMenuItem(
-                          value: lang,
-                          child: Text(lang, style: const TextStyle(color: _textLight)),
-                        ))
-                    .toList(),
-                onChanged: (value) => selectedLanguage = value!,
-              ),
-              const SizedBox(height: 16),
-              CheckboxListTile(
-                title: Text('Subtítulos', style: TextStyle(color: _textLight)),
-                value: hasSubtitles,
-                activeColor: _primaryBlue,
-                onChanged: (value) => hasSubtitles = value ?? false,
-              ),
+              _buildDetailRow('Sala', room?.roomName ?? 'Desconocida', Icons.meeting_room),
+              _buildDetailRow('Fecha', '${showtime.dateTime.day}/${showtime.dateTime.month}/${showtime.dateTime.year}', Icons.calendar_today),
+              _buildDetailRow('Hora', '${showtime.dateTime.hour}:${showtime.dateTime.minute.toString().padLeft(2, '0')}', Icons.schedule),
+              _buildDetailRow('Precio', '\$${showtime.price.toStringAsFixed(2)}', Icons.attach_money),
+              _buildDetailRow('Asientos Disponibles', showtime.remainingSeats.toString(), Icons.event_seat),
+              _buildDetailRow('Idioma', showtime.lenguage, Icons.language),
+              if (movie?.movieGenre != null)
+                _buildDetailRow('Género', movie!.movieGenre, Icons.category),
+              if (movie?.movieDurationMinutes != null)
+                _buildDetailRow('Duración', '${movie!.movieDurationMinutes} minutos', Icons.access_time),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: TextStyle(color: _textMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _saveShowtime(
-                showtime,
-                movieController.text,
-                roomController.text,
-                double.tryParse(priceController.text) ?? 0.0,
-                selectedDateTime,
-                selectedLanguage,
-                hasSubtitles,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryBlue,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text(showtime == null ? 'Agregar' : 'Guardar'),
+            child: const Text('Cerrar', style: TextStyle(fontSize: 16)),
           ),
         ],
       ),
     );
   }
 
-  void _saveShowtime(Showtime? existingShowtime, String movieTitle, String roomName, 
-      double price, DateTime startTime, String language, bool subtitles) {
-    if (existingShowtime == null) {
-      // Agregar nueva función
-      final newShowtime = Showtime(
-        id: DateTime.now().millisecondsSinceEpoch,
-        movieTitle: movieTitle,
-        movieGenre: 'Drama', // Por defecto
-        roomName: roomName,
-        roomCapacity: 80, // Por defecto
-        startTime: startTime,
-        endTime: startTime.add(const Duration(hours: 2, minutes: 30)),
-        price: price,
-        availableSeats: 80,
-        status: 'Programada',
-        language: language,
-        subtitles: subtitles,
-      );
-      setState(() {
-        _showtimes.add(newShowtime);
-      });
-    } else {
-      // Editar función existente
-      setState(() {
-        existingShowtime.movieTitle = movieTitle;
-        existingShowtime.roomName = roomName;
-        existingShowtime.price = price;
-        existingShowtime.startTime = startTime;
-        existingShowtime.language = language;
-        existingShowtime.subtitles = subtitles;
-      });
-    }
-  }
-
-  void _duplicateShowtime(Showtime showtime) {
-    final newShowtime = Showtime(
-      id: DateTime.now().millisecondsSinceEpoch,
-      movieTitle: showtime.movieTitle,
-      movieGenre: showtime.movieGenre,
-      roomName: showtime.roomName,
-      roomCapacity: showtime.roomCapacity,
-      startTime: showtime.startTime.add(const Duration(days: 1)),
-      endTime: showtime.endTime.add(const Duration(days: 1)),
-      price: showtime.price,
-      availableSeats: showtime.roomCapacity,
-      status: 'Programada',
-      language: showtime.language,
-      subtitles: showtime.subtitles,
-    );
-    setState(() {
-      _showtimes.add(newShowtime);
-    });
-  }
-
-  void _cancelShowtime(Showtime showtime) {
-    setState(() {
-      showtime.status = 'Cancelada';
-    });
-  }
-
-  void _showDeleteConfirmation(Showtime showtime) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _cardBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Confirmar eliminación', style: TextStyle(color: _textLight)),
-        content: Text(
-          '¿Estás seguro de que deseas eliminar la función de "${showtime.movieTitle}"?',
-          style: TextStyle(color: _textMuted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: TextStyle(color: _textMuted)),
+  Widget _buildDetailRow(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, color: _primaryBlue, size: 18),
+          const SizedBox(width: 12),
+          Text(
+            '$label: ',
+            style: TextStyle(color: _textMuted, fontWeight: FontWeight.w500),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteShowtime(showtime);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _dangerRed,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: _textLight),
             ),
-            child: const Text('Eliminar'),
           ),
         ],
       ),
     );
-  }
-
-  void _deleteShowtime(Showtime showtime) {
-    setState(() {
-      _showtimes.removeWhere((s) => s.id == showtime.id);
-    });
   }
 
   @override
@@ -919,34 +1471,4 @@ class _ShowtimesAdminPageState extends State<ShowtimesAdminPage> with SingleTick
       ),
     );
   }
-}
-
-class Showtime {
-  int id;
-  String movieTitle;
-  String movieGenre;
-  String roomName;
-  int roomCapacity;
-  DateTime startTime;
-  DateTime endTime;
-  double price;
-  int availableSeats;
-  String status;
-  String language;
-  bool subtitles;
-
-  Showtime({
-    required this.id,
-    required this.movieTitle,
-    required this.movieGenre,
-    required this.roomName,
-    required this.roomCapacity,
-    required this.startTime,
-    required this.endTime,
-    required this.price,
-    required this.availableSeats,
-    required this.status,
-    required this.language,
-    required this.subtitles,
-  });
 }

@@ -87,6 +87,7 @@ class AuthService {
       'userEmail': email,
       'userPassword': password,
       'userRoles': role ?? AppConstants.defaultRole,  // String en lugar de array
+       //'userRoles': role != null ? [role] : [AppConstants.defaultRole]
     };
     
     print('[AuthService] Datos de registro a enviar:');

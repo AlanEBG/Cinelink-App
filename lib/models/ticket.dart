@@ -1,25 +1,32 @@
+import 'package:cinelink_app/models/showtime.dart';
+import 'package:cinelink_app/models/customer.dart';
+
 class Ticket {
   final String? id;
   final double price;
   final DateTime purchaseDate;
-  final String? customerId;
-  final String? showtimeId;
+  final Customer? customer;
+  final Showtime? showtime;
 
   Ticket({
     this.id,
     required this.price,
     required this.purchaseDate,
-    this.customerId,
-    this.showtimeId,
+    this.customer,
+    this.showtime,
   });
 
   factory Ticket.fromJson(Map<String, dynamic> json) {
     return Ticket(
-      id: json['id']?.toString(),
+      id: json['id'],
       price: _parseDouble(json['price']),
       purchaseDate: DateTime.parse(json['purchaseDate']),
-      customerId: json['customer']?.toString(),
-      showtimeId: json['showtime']?.toString(),
+      customer: json['customer'] != null 
+          ? Customer.fromJson(json['customer']) 
+          : null,
+      showtime: json['showtime'] != null 
+          ? Showtime.fromJson(json['showtime']) 
+          : null,
     );
   }
 
@@ -37,35 +44,42 @@ class Ticket {
       'id': id,
       'price': price,
       'purchaseDate': purchaseDate.toIso8601String(),
-      'customer': customerId,
-      'showtime': showtimeId,
+      'customer': customer?.toJson(),
+      'showtime': showtime?.toJson(),
     };
   }
 
-  // Helper para obtener la fecha formateada
+  // Getters útiles
   String get formattedDate {
-    return '${purchaseDate.day.toString().padLeft(2, '0')}/${purchaseDate.month.toString().padLeft(2, '0')}/${purchaseDate.year}';
+    return '${purchaseDate.day.toString().padLeft(2, '0')}/'
+        '${purchaseDate.month.toString().padLeft(2, '0')}/'
+        '${purchaseDate.year}';
   }
 
-  // Helper para obtener la hora formateada
   String get formattedTime {
-    return '${purchaseDate.hour.toString().padLeft(2, '0')}:${purchaseDate.minute.toString().padLeft(2, '0')}';
+    return '${purchaseDate.hour.toString().padLeft(2, '0')}:'
+        '${purchaseDate.minute.toString().padLeft(2, '0')}';
   }
+
+  String get customerName => customer?.customerName ?? 'N/A';
+  String get customerEmail => customer?.customerEmail ?? 'N/A';
+  String get customerPhone => customer?.customerPhoneNumber ?? 'N/A';
+  String get movieTitle => showtime?.movie?.movieTitle ?? 'N/A';
 
   // Copiar el ticket con nuevos valores
   Ticket copyWith({
     String? id,
     double? price,
     DateTime? purchaseDate,
-    String? customerId,
-    String? showtimeId,
+    Customer? customer,
+    Showtime? showtime,
   }) {
     return Ticket(
       id: id ?? this.id,
       price: price ?? this.price,
       purchaseDate: purchaseDate ?? this.purchaseDate,
-      customerId: customerId ?? this.customerId,
-      showtimeId: showtimeId ?? this.showtimeId,
+      customer: customer ?? this.customer,
+      showtime: showtime ?? this.showtime,
     );
   }
 }

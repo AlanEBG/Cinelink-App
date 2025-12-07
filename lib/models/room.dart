@@ -42,7 +42,7 @@ class Room {
 
   Map<String, dynamic> toJson() {
     return {
-      'roomId': roomId,
+      
       'roomName': roomName,
       'roomCapacity': roomCapacity,
     };
