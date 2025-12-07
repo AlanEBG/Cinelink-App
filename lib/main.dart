@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'controllers/movie_controller.dart';
 import 'controllers/showtime_controller.dart';
 import 'controllers/seat_controller.dart';
@@ -8,7 +9,10 @@ import 'controllers/virtual_seat_controller.dart';
 import 'controllers/auth_controller.dart';
 import 'app/routes.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+
   runApp(
     MultiProvider(
       providers: [

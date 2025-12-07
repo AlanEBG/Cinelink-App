@@ -14,6 +14,10 @@ migrate_working_dir/
 windows/
 linux/
 macos/
+
+# Variables de entorno
+.env
+
 # IntelliJ related
 *.iml
 *.ipr
