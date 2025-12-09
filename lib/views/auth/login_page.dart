@@ -114,7 +114,7 @@ class _LoginPageState extends State<LoginPage> {
                   
                   // Título
                   Text(
-                    'Cine App',
+                    'CineLink',
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.primary,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../app/theme.dart';
 
 class MorePage extends StatelessWidget {
   const MorePage({super.key});
@@ -6,188 +8,234 @@ class MorePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.grey50,
       appBar: AppBar(
-        title: const Text('Más Opciones'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
+        // Sombra sutil debajo del AppBar (consistente con MovieListPage)
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+        ),
+        title: Text(
+          'Más Opciones',
+          style: GoogleFonts.poppins(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            color: AppColors.textPrimary,
+            onPressed: () {
+              _showSnackBar(context, 'Búsqueda - No implementado');
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          // Sección: Servicios
-          const _SectionHeader(title: 'Servicios'),
+          // ==========================================
+          // SECCIÓN 1: CINELINK REWARDS (Estilo Premium)
+          // ==========================================
+          const _SectionHeader(title: 'CineLink Rewards'),
+
           _MoreCard(
-            icon: Icons.favorite,
-            title: 'Mis Favoritos',
-            subtitle: 'Películas que te gustan',
-            color: Colors.red,
+            icon: Icons.stars_rounded,
+            title: 'Nivel Platino',
+            subtitle: '12,450 Puntos acumulados',
+            // Gradiente Azul Corporativo (Primary)
             gradient: LinearGradient(
-              colors: [Colors.red.shade400, Colors.red.shade600],
+              colors: [
+                AppColors.primary,
+                AppColors.primary.withOpacity(0.8),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Favoritos - En construcción'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            onTap: () => _showSnackBar(context, 'Rewards - Próximamente'),
           ),
+
           _MoreCard(
-            icon: Icons.local_offer,
-            title: 'Promociones',
-            subtitle: 'Descuentos y ofertas especiales',
-            color: Colors.orange,
-            gradient: LinearGradient(
-              colors: [Colors.orange.shade400, Colors.orange.shade600],
+            icon: Icons.account_balance_wallet_rounded,
+            title: 'CinePass Wallet',
+            subtitle: 'Saldo actual: \$150.00 MXN',
+            // Gradiente Oscuro (TextPrimary) para simular tarjeta Black
+            gradient: const LinearGradient(
+              colors: [
+                AppColors.textPrimary,
+                Color(0xFF2C3E63),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Promociones - En construcción'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            onTap: () => _showSnackBar(context, 'Wallet - Próximamente'),
           ),
+
+          const SizedBox(height: AppSpacing.lg),
+
+          // ==========================================
+          // SECCIÓN 2: ACTIVIDAD DEL USUARIO
+          // ==========================================
+          const _SectionHeader(title: 'Tu Actividad'),
+
           _MoreCard(
-            icon: Icons.location_on,
-            title: 'Cines Cercanos',
-            subtitle: 'Encuentra el cine más cerca de ti',
-            color: Colors.green,
+            icon: Icons.history_rounded,
+            title: 'Historial de Compras',
+            subtitle: 'Revisa tus últimas 10 visitas',
+            // Color Info (Azul claro)
             gradient: LinearGradient(
-              colors: [Colors.green.shade400, Colors.green.shade600],
+              colors: [
+                AppColors.info,
+                AppColors.info.withOpacity(0.8),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Cines Cercanos - En construcción'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            onTap: () => _showSnackBar(context, 'Historial - Vacío por ahora'),
           ),
+
           _MoreCard(
-            icon: Icons.fastfood,
-            title: 'Snacks y Combos',
-            subtitle: 'Pre-ordena tus palomitas',
-            color: Colors.amber,
+            icon: Icons.local_activity_rounded,
+            title: 'Mis Cupones',
+            subtitle: 'Tienes 3 cupones por vencer',
+            // Color Secondary (Rosa/Rojo) para urgencia
             gradient: LinearGradient(
-              colors: [Colors.amber.shade400, Colors.amber.shade600],
+              colors: [
+                AppColors.secondary,
+                AppColors.secondary.withOpacity(0.8),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Snacks - En construcción'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            onTap: () =>
+                _showSnackBar(context, 'Cupones - No tienes cupones reales'),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.lg),
 
-          // Sección: Información
-          const _SectionHeader(title: 'Información'),
+          // ==========================================
+          // SECCIÓN 3: AJUSTES DE LA APP
+          // ==========================================
+          const _SectionHeader(title: 'Ajustes de la App'),
+
           _MoreOption(
-            icon: Icons.info_outline,
-            title: 'Acerca de',
-            subtitle: 'Versión 1.0.0',
-            color: Colors.blue,
-            onTap: () {
-              _showAboutDialog(context);
-            },
-          ),
-          _MoreOption(
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacidad y Términos',
-            subtitle: 'Políticas de privacidad',
-            color: Colors.purple,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Privacidad - En construcción'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-          ),
-          _MoreOption(
-            icon: Icons.contact_support_outlined,
-            title: 'Contacto',
-            subtitle: 'Envíanos tus comentarios',
-            color: Colors.teal,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Contacto - En construcción'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-          ),
-          _MoreOption(
-            icon: Icons.star_outline,
-            title: 'Califica la App',
-            subtitle: 'Déjanos tu opinión',
-            color: Colors.orange,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Calificación - En construcción'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            icon: Icons.notifications_outlined,
+            title: 'Notificaciones',
+            subtitle: 'Estrenos y preventas activadas',
+            iconColor: AppColors.warning,
+            onTap: () {},
           ),
 
-          const SizedBox(height: 24),
-
-          // Sección: Desarrolladores
-          const _SectionHeader(title: 'Desarrolladores'),
           _MoreOption(
-            icon: Icons.code,
-            title: 'Modo Desarrollador',
-            subtitle: 'Opciones avanzadas',
-            color: Colors.grey,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Modo Dev - En construcción'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
+            icon: Icons.fingerprint_rounded,
+            title: 'Seguridad',
+            subtitle: 'Biometría habilitada',
+            iconColor: AppColors.primary,
+            onTap: () => _showSnackBar(context, 'Biometría - Simulación'),
           ),
 
-          const SizedBox(height: 32),
+          _MoreOption(
+            icon: Icons.language_rounded,
+            title: 'Idioma',
+            subtitle: 'Español (México)',
+            iconColor: AppColors.success,
+            onTap: () {},
+          ),
 
-          // Footer
+          _MoreOption(
+            icon: Icons.dark_mode_outlined,
+            title: 'Tema',
+            subtitle: 'Modo Claro',
+            iconColor: AppColors.textSecondary,
+            onTap: () {},
+          ),
+
+          const SizedBox(height: AppSpacing.lg),
+
+          // ==========================================
+          // SECCIÓN 4: SOPORTE Y LEGAL
+          // ==========================================
+          const _SectionHeader(title: 'Soporte y Legal'),
+
+          _MoreOption(
+            icon: Icons.help_outline_rounded,
+            title: 'Ayuda y Soporte',
+            subtitle: 'Preguntas frecuentes',
+            iconColor: AppColors.info,
+            onTap: () {},
+          ),
+
+          _MoreOption(
+            icon: Icons.policy_outlined,
+            title: 'Términos y Privacidad',
+            subtitle: 'Legal y datos',
+            iconColor: AppColors.grey600,
+            onTap: () => _showAboutDialog(context),
+          ),
+
+          // ==========================================
+          // FOOTER: CERRAR SESIÓN Y VERSIÓN
+          // ==========================================
+          Container(
+            margin: const EdgeInsets.only(
+              top: AppSpacing.md,
+              bottom: AppSpacing.xl,
+            ),
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _showSnackBar(context, 'Cerrando sesión...'),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: AppColors.error.withOpacity(0.3)),
+                foregroundColor: AppColors.error,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
+                textStyle: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text('Cerrar Sesión'),
+            ),
+          ),
+
           Center(
             child: Column(
               children: [
-                const Icon(
-                  Icons.movie,
-                  size: 48,
-                  color: Colors.grey,
-                ),
-                const SizedBox(height: 8),
                 Text(
-                  'Cine App',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[600],
+                  'CineLink v1.0.0',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.grey500,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '© 2025 - Todos los derechos reservados',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
+                  'Hecho con amor en Flutter 💙',
+                  style: GoogleFonts.poppins(
+                    fontSize: 10,
+                    color: AppColors.grey400,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.xl),
               ],
             ),
           ),
@@ -196,43 +244,98 @@ class MorePage extends StatelessWidget {
     );
   }
 
+  // --- Métodos Auxiliares ---
+
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: GoogleFonts.poppins(color: Colors.white),
+        ),
+        backgroundColor: AppColors.textPrimary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
+      ),
+    );
+  }
+
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        title: Row(
           children: [
-            Icon(Icons.movie, color: Colors.purple),
-            SizedBox(width: 8),
-            Text('Cine App'),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: const Icon(Icons.movie_rounded, color: AppColors.primary),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'CineLink',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
           ],
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Versión: 1.0.0'),
-            SizedBox(height: 8),
-            Text('Desarrollado por: AlanEBG'),
-            SizedBox(height: 8),
-            Text('Fecha: Noviembre 2025'),
-            SizedBox(height: 16),
             Text(
-              'Una aplicación moderna para reservar boletos de cine.',
-              style: TextStyle(fontSize: 13),
+              'Versión: 1.0.0 Beta',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Desarrollado por: AlanEBG',
+              style: GoogleFonts.poppins(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Aplicación de demostración con diseño Material y paleta personalizada.',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+            child: const Text('Entendido'),
           ),
         ],
       ),
     );
   }
 }
+
+// ==========================================================
+// WIDGETS PRIVADOS (REUTILIZABLES EN ESTE ARCHIVO)
+// ==========================================================
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -242,12 +345,17 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 8, bottom: 12, top: 8),
+      padding: const EdgeInsets.only(
+        left: AppSpacing.xs,
+        bottom: AppSpacing.sm,
+        top: AppSpacing.sm,
+      ),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 20,
+        style: GoogleFonts.poppins(
+          fontSize: 18,
           fontWeight: FontWeight.bold,
+          color: AppColors.textPrimary,
         ),
       ),
     );
@@ -258,7 +366,6 @@ class _MoreCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color color;
   final Gradient gradient;
   final VoidCallback onTap;
 
@@ -266,71 +373,74 @@ class _MoreCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
     required this.gradient,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(16),
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 26),
                 ),
-                child: Icon(
-                  icon,
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.poppins(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
                   color: Colors.white,
-                  size: 28,
+                  size: 20,
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: Colors.white,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -342,56 +452,69 @@ class _MoreOption extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color color;
+  final Color iconColor;
   final VoidCallback onTap;
 
   const _MoreOption({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
+    required this.iconColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: AppColors.grey200),
       ),
       child: ListTile(
         onTap: onTap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 4,
+        ),
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 24,
-          ),
+          child: Icon(icon, color: iconColor, size: 22),
         ),
         title: Text(
           title,
-          style: const TextStyle(
+          style: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
-            fontSize: 16,
+            fontSize: 15,
+            color: AppColors.textPrimary,
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.grey[600],
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            color: AppColors.textSecondary,
           ),
         ),
         trailing: Icon(
-          Icons.chevron_right,
-          color: Colors.grey[400],
+          Icons.chevron_right_rounded,
+          color: AppColors.grey400,
+          size: 20,
         ),
       ),
     );

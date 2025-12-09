@@ -97,7 +97,7 @@ class _SignupPageState extends State<SignupPage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Únete a Cinema App',
+                  'Únete a Cinelink',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
