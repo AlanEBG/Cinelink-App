@@ -132,8 +132,13 @@ class _SplashPageState extends State<SplashPage> {
     if (!mounted) return;
 
     if (authController.isAuthenticated) {
+      // Si el usuario está autenticado, verificar si es admin o usuario normal
+      // Por defecto, redirigir a movies (home del usuario)
+      // El usuario puede acceder a /admin desde el menú si tiene permisos
+      print('[SplashPage] Usuario autenticado, redirigiendo a /movies');
       Navigator.of(context).pushReplacementNamed(AppRoutes.movies);
     } else {
+      print('[SplashPage] Usuario no autenticado, redirigiendo a /login');
       Navigator.of(context).pushReplacementNamed(AppRoutes.login);
     }
   }

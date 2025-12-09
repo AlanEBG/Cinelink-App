@@ -83,8 +83,8 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      // ✅ Arrancar en login y usar el sistema de rutas
-      initialRoute: AppRoutes.login,
+      //  Arrancar en splash para verificar autenticación
+      initialRoute: AppRoutes.splash,
       onGenerateRoute: AppRoutes.generateRoute,
     );
   }
