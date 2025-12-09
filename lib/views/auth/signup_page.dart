@@ -15,7 +15,7 @@ class _SignupPageState extends State<SignupPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
@@ -31,7 +31,7 @@ class _SignupPageState extends State<SignupPage> {
   Future<void> _handleSignup() async {
     // Limpiar errores previos
     context.read<AuthController>().clearError();
-    
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -51,7 +51,7 @@ class _SignupPageState extends State<SignupPage> {
     FocusScope.of(context).unfocus();
 
     final authController = context.read<AuthController>();
-    
+
     final success = await authController.signup(
       email: _emailController.text.trim(),
       password: _passwordController.text,
@@ -61,8 +61,8 @@ class _SignupPageState extends State<SignupPage> {
     if (!mounted) return;
 
     if (success) {
-      // Navegar a home
-      Navigator.of(context).pushReplacementNamed('/home');
+      // Navegar a la página de películas después del registro exitoso
+      Navigator.of(context).pushReplacementNamed('/movies');
     } else {
       // Mostrar error
       ScaffoldMessenger.of(context).showSnackBar(
@@ -78,12 +78,9 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Crear Cuenta'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Crear Cuenta'), centerTitle: true),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -115,7 +112,7 @@ class _SignupPageState extends State<SignupPage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Email Field
                 TextFormField(
                   controller: _emailController,
@@ -129,7 +126,7 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Password Field
                 TextFormField(
                   controller: _passwordController,
@@ -156,7 +153,7 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Confirm Password Field
                 TextFormField(
                   controller: _confirmPasswordController,
@@ -186,7 +183,7 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Terms and Conditions
                 Row(
                   children: [
@@ -225,7 +222,7 @@ class _SignupPageState extends State<SignupPage> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Signup Button
                 Consumer<AuthController>(
                   builder: (context, authController, child) {
@@ -258,7 +255,7 @@ class _SignupPageState extends State<SignupPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Login link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
