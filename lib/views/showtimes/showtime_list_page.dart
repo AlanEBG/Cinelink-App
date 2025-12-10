@@ -543,11 +543,31 @@ class _ShowtimeListPageState extends State<ShowtimeListPage> {
   }
 
   void _onShowtimeSelected(Showtime showtime) {
+    // Debug: Verificar showtime ID
+    print('[ShowtimeList] ===== SHOWTIME SELECCIONADO =====');
+    print('[ShowtimeList] Showtime ID: ${showtime.id}');
+    print('[ShowtimeList] Showtime dateTime: ${showtime.dateTime}');
+    print('[ShowtimeList] Remaining seats: ${showtime.remainingSeats}');
+    print('[ShowtimeList] Price: ${showtime.price}');
+    print('[ShowtimeList] ===================================');
+
     if (showtime.remainingSeats == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Esta función no tiene asientos disponibles'),
           backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Validar que el showtime tenga ID
+    if (showtime.id == null || showtime.id!.isEmpty) {
+      print('[ShowtimeList] ERROR: Showtime ID es null o vacío!');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: Esta función no tiene un ID válido'),
+          backgroundColor: Colors.red,
         ),
       );
       return;

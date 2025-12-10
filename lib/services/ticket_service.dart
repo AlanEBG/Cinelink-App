@@ -68,6 +68,44 @@ class TicketService {
     }
   }
 
+  // Crear un ticket con solo IDs (para el flujo de pagos)
+  Future<Ticket?> createTicketWithIds({
+    required double price,
+    required String customerId,
+    required String showtimeId,
+  }) async {
+    try {
+      // El backend espera: customer, showtime (no customerId/showtimeId)
+      // y purchaseDate en formato ISO 8601
+      final ticketData = {
+        'price': price,
+        'customer': customerId, // Sin "Id" al final
+        'showtime': showtimeId, // Sin "Id" al final
+        'purchaseDate': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      print(
+        '[TicketService] Creando ticket con estructura correcta: $ticketData',
+      );
+
+      final response = await _apiService.post(
+        AppConstants.ticketsEndpoint,
+        data: ticketData,
+      );
+
+      print('[TicketService] Respuesta del servidor: ${response.data}');
+
+      if (response.data != null) {
+        return Ticket.fromJson(response.data);
+      }
+
+      return null;
+    } catch (e) {
+      print('[TicketService] Error al crear ticket con IDs: $e');
+      rethrow;
+    }
+  }
+
   // Actualizar un ticket existente
   Future<Ticket?> updateTicket(String id, Ticket ticket) async {
     try {
@@ -101,19 +139,61 @@ class TicketService {
   // Obtener tickets por cliente
   Future<List<Ticket>> getTicketsByCustomer(String customerId) async {
     try {
-      final response = await _apiService.get(
-        '${AppConstants.ticketsEndpoint}/customer/$customerId',
+      print('[TicketService] Consultando tickets para customer: $customerId');
+
+      // Fallback: usar GET /ticket y filtrar por customerId en cliente
+      // ya que el endpoint /ticket/customer/:id no está disponible en el backend
+      print(
+        '[TicketService] Usando fallback: obteniendo todos los tickets y filtrando',
+      );
+
+      final response = await _apiService.get(AppConstants.ticketsEndpoint);
+
+      print('[TicketService] Response status: ${response.statusCode}');
+      print(
+        '[TicketService] Response data type: ${response.data?.runtimeType}',
       );
 
       if (response.data is List) {
-        return (response.data as List)
-            .map((json) => Ticket.fromJson(json))
-            .toList();
+        final allTickets = (response.data as List);
+        print('[TicketService] Total tickets recibidos: ${allTickets.length}');
+
+        // Filtrar tickets por customerId
+        final customerTickets = allTickets.where((ticketJson) {
+          // El customer puede venir como objeto o como string (ID)
+          final customerData = ticketJson['customer'];
+
+          if (customerData is String) {
+            // Si customer es un string (ID), comparar directamente
+            return customerData == customerId;
+          } else if (customerData is Map) {
+            // Si customer es un objeto, extraer el ID
+            final customerIdFromObject =
+                customerData['id'] ?? customerData['customerId'];
+            return customerIdFromObject == customerId;
+          }
+
+          // Si no hay customer o formato no reconocido, verificar customerId directo
+          return ticketJson['customerId'] == customerId;
+        }).toList();
+
+        print(
+          '[TicketService] Tickets filtrados para customer $customerId: ${customerTickets.length}',
+        );
+
+        // Log detallado de cada ticket filtrado
+        for (var i = 0; i < customerTickets.length; i++) {
+          final ticketJson = customerTickets[i];
+          print('[TicketService] Ticket filtrado $i: ID=${ticketJson['id']}');
+        }
+
+        return customerTickets.map((json) => Ticket.fromJson(json)).toList();
       }
 
+      print('[TicketService] Response data no es una lista, retornando vacío');
       return [];
     } catch (e) {
-      print('Error al obtener tickets del cliente: $e');
+      print('[TicketService] Error al obtener tickets del cliente: $e');
       rethrow;
     }
   }
@@ -214,7 +294,10 @@ class TicketService {
   }
 
   // Ordenar tickets por fecha
-  List<Ticket> sortTicketsByDate(List<Ticket> tickets, {bool ascending = true}) {
+  List<Ticket> sortTicketsByDate(
+    List<Ticket> tickets, {
+    bool ascending = true,
+  }) {
     final sortedTickets = List<Ticket>.from(tickets);
     sortedTickets.sort((a, b) {
       return ascending
@@ -225,7 +308,10 @@ class TicketService {
   }
 
   // Ordenar tickets por precio
-  List<Ticket> sortTicketsByPrice(List<Ticket> tickets, {bool ascending = true}) {
+  List<Ticket> sortTicketsByPrice(
+    List<Ticket> tickets, {
+    bool ascending = true,
+  }) {
     final sortedTickets = List<Ticket>.from(tickets);
     sortedTickets.sort((a, b) {
       return ascending
@@ -260,7 +346,10 @@ class TicketService {
       };
     }
 
-    final totalRevenue = tickets.fold<double>(0.0, (sum, ticket) => sum + ticket.price);
+    final totalRevenue = tickets.fold<double>(
+      0.0,
+      (sum, ticket) => sum + ticket.price,
+    );
     final prices = tickets.map((t) => t.price).toList()..sort();
 
     return {
