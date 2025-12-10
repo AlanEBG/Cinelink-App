@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../views/auth/login_page.dart';
 import '../views/auth/signup_page.dart';
 import '../views/movies/movie_list_page.dart';
+import '../views/tickets/tickets_page.dart';
 import '../views/profile/profile_page.dart';
 import '../views/more/more_page.dart';
 import '../controllers/auth_controller.dart';
@@ -19,6 +20,7 @@ class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String movies = '/movies';
+  static const String tickets = '/tickets';
   // ❌ QUITAR showtimes de aquí (ShowtimeListPage requiere movie)
   // static const String showtimes = '/showtimes';
   static const String profile = '/profile';
@@ -61,6 +63,14 @@ class AppRoutes {
       //       child: ShowtimeListPage(),
       //     ),
       //   );
+
+      case tickets:
+        return MaterialPageRoute(
+          builder: (_) => const AppLayout(
+            currentIndex: 1, // 🎟️ Boletos
+            child: TicketsPage(),
+          ),
+        );
 
       case profile:
         return MaterialPageRoute(

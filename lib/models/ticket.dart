@@ -17,16 +17,30 @@ class Ticket {
   });
 
   factory Ticket.fromJson(Map<String, dynamic> json) {
+    // Parsear customer: puede ser un Map (objeto completo) o un String (solo ID)
+    Customer? customerObj;
+    if (json['customer'] != null) {
+      if (json['customer'] is Map<String, dynamic>) {
+        customerObj = Customer.fromJson(json['customer']);
+      }
+      // Si es String (solo ID), customer queda null - el ticket se creó pero necesita población
+    }
+
+    // Parsear showtime: puede ser un Map (objeto completo) o un String (solo ID)
+    Showtime? showtimeObj;
+    if (json['showtime'] != null) {
+      if (json['showtime'] is Map<String, dynamic>) {
+        showtimeObj = Showtime.fromJson(json['showtime']);
+      }
+      // Si es String (solo ID), showtime queda null - el ticket se creó pero necesita población
+    }
+
     return Ticket(
       id: json['id'],
       price: _parseDouble(json['price']),
       purchaseDate: DateTime.parse(json['purchaseDate']),
-      customer: json['customer'] != null 
-          ? Customer.fromJson(json['customer']) 
-          : null,
-      showtime: json['showtime'] != null 
-          ? Showtime.fromJson(json['showtime']) 
-          : null,
+      customer: customerObj,
+      showtime: showtimeObj,
     );
   }
 

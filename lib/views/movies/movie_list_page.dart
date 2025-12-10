@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../services/movie_service.dart';
 import '../../models/movie.dart';
 import '../../app/theme.dart';
@@ -156,11 +157,6 @@ class _MovieListPageState extends State<MovieListPage>
             decoration: BoxDecoration(
               color: AppColors.grey100,
               borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(
-              Icons.person_outline,
-              color: AppColors.grey600,
-              size: 24,
             ),
           ),
         ],
@@ -520,6 +516,161 @@ class _MovieListPageState extends State<MovieListPage>
     );
   }
 
+  // Skeleton loader para el estado de carga de películas
+  Widget _buildMovieSkeletonLoader() {
+    return Column(
+      children: [
+        _buildAppBar(),
+        const SizedBox(height: 16),
+        _buildSearchBar(),
+        const SizedBox(height: 24),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              // Skeleton para sección de género
+              _buildSkeletonGenreSection('Películas'),
+              const SizedBox(height: 24),
+              _buildSkeletonGenreSection('Más películas'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Skeleton para una sección de género
+  Widget _buildSkeletonGenreSection(String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Título de la sección
+        Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(
+            height: 24,
+            width: 150,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Tarjetas de películas skeleton
+        SizedBox(
+          height: 420,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: 3,
+            itemBuilder: (context, index) {
+              return Shimmer.fromColors(
+                baseColor: Colors.grey[300]!,
+                highlightColor: Colors.grey[100]!,
+                child: Container(
+                  width: 260,
+                  margin: const EdgeInsets.only(right: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Placeholder para imagen (proporción 0.65)
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(AppRadius.xl),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Placeholder para contenido inferior
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Título
+                            Container(
+                              height: 20,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              height: 20,
+                              width: 180,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            // Género y duración
+                            Row(
+                              children: [
+                                Container(
+                                  height: 24,
+                                  width: 80,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.sm,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Container(
+                                  height: 16,
+                                  width: 60,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Botón
+                            Container(
+                              height: 40,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.md,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -530,22 +681,7 @@ class _MovieListPageState extends State<MovieListPage>
           builder: (context, snapshot) {
             // Loading
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(color: AppColors.primary),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Cargando películas...',
-                      style: GoogleFonts.poppins(
-                        color: AppColors.textSecondary,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              );
+              return _buildMovieSkeletonLoader();
             }
 
             // Error

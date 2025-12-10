@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../controllers/virtual_seat_controller.dart';
 import '../../models/movie.dart';
 import '../../models/showtime.dart';
+import '../../models/booking_data.dart';
+import '../payments/payment_booking_page.dart';
 
 class SeatSelectionPage extends StatefulWidget {
   final Movie movie;
@@ -636,173 +637,64 @@ class _SeatSelectionPageState extends State<SeatSelectionPage> {
   }
 
   void _onContinue(VirtualSeatController controller) async {
-    // Mostrar diálogo de confirmación
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Confirmar Reserva',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildConfirmRow('Película', widget.movie.movieTitle),
-            const SizedBox(height: 8),
-            _buildConfirmRow(
-              'Función',
-              DateFormat('dd/MM/yyyy HH:mm').format(widget.showtime.dateTime),
-            ),
-            const SizedBox(height: 8),
-            _buildConfirmRow('Idioma', widget.showtime.lenguage),
-            const SizedBox(height: 8),
-            _buildConfirmRow('Sala', controller.currentRoom?.roomName ?? "N/A"),
-            const SizedBox(height: 8),
-            _buildConfirmRow(
-              'Asientos',
-              controller.getSelectedSeatNumbers().join(', '),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total:',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '\$${controller.totalPrice.toStringAsFixed(2)}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancelar',
-              style: GoogleFonts.poppins(color: Colors.grey[600]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              'Confirmar',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
+    // Calcular precio por asiento
+    final pricePerSeat = controller.selectedSeatsCount > 0
+        ? controller.totalPrice / controller.selectedSeatsCount
+        : 0.0;
+
+    // Debug: Verificar showtime ID antes de crear BookingData
+    print('[SeatSelection] ===== DEBUG SHOWTIME =====');
+    print('[SeatSelection] Showtime ID: ${widget.showtime.id}');
+    print('[SeatSelection] Showtime dateTime: ${widget.showtime.dateTime}');
+    print('[SeatSelection] Showtime price: ${widget.showtime.price}');
+    print('[SeatSelection] Movie title: ${widget.movie.movieTitle}');
+    print(
+      '[SeatSelection] Selected seats: ${controller.getSelectedSeatNumbers()}',
     );
+    print('[SeatSelection] Total price: ${controller.totalPrice}');
+    print('[SeatSelection] =============================');
 
-    if (confirm == true && mounted) {
-      // Realizar la reserva
-      final success = await controller.confirmReservation();
-
+    // Validar que el showtime tenga ID antes de continuar
+    if (widget.showtime.id == null || widget.showtime.id!.isEmpty) {
+      print('[SeatSelection] ERROR: Showtime ID es null o vacío!');
       if (mounted) {
-        if (success) {
-          // Mostrar mensaje de éxito
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '¡Reserva realizada con éxito!',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          '${controller.selectedSeatsCount} asiento(s) reservado(s)',
-                          style: GoogleFonts.poppins(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error: La función no tiene un ID válido. Por favor selecciona otra función.',
             ),
-          );
-
-          // Volver a la pantalla anterior
-          Navigator.pop(context);
-          Navigator.pop(context);
-        } else {
-          // Mostrar mensaje de error
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                controller.errorMessage ?? 'Error al realizar la reserva',
-                style: GoogleFonts.poppins(),
-              ),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  Widget _buildConfirmRow(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 80,
-          child: Text(
-            '$label:',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
-            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
           ),
-        ),
-        Expanded(
-          child: Text(value, style: GoogleFonts.poppins(color: Colors.black87)),
-        ),
-      ],
+        );
+      }
+      return;
+    }
+
+    // Crear datos de reserva
+    final bookingData = BookingData(
+      movie: widget.movie,
+      showtime: widget.showtime,
+      selectedSeats: controller.getSelectedSeatNumbers(),
+      roomName: controller.currentRoom?.roomName ?? "N/A",
+      totalPrice: controller.totalPrice,
+      pricePerSeat: pricePerSeat,
     );
+
+    print('[SeatSelection] BookingData creado exitosamente');
+    print(
+      '[SeatSelection] BookingData showtime ID: ${bookingData.showtime.id}',
+    );
+
+    // Navegar directamente a la página de pagos
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentBookingPage(bookingData: bookingData),
+        ),
+      );
+    }
   }
 
   Widget _buildLoadingState() {
